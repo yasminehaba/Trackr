@@ -80,3 +80,6 @@ docker-compose.override.yml
 CLAUDE.md
 # CI test reports
 frontend/test-results/
+
+# Local deployment state (scripts/deploy.sh)
+.deploy/

@@ -185,6 +185,7 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.push.outputs.digest }}
+          SHA: ${{ steps.meta.outputs.sha }}
         run: |
           {
             echo "### 📦 trackr-${{ matrix.service }} publié"
@@ -192,4 +193,6 @@ jobs:
             echo "Digest : \`$DIGEST\`"
             echo ""
             echo "$TAGS" | tr ',' '\n' | sed 's/^/- `/; s/$/`/'
+            echo ""
+            echo "Déploiement local : \`scripts/deploy.sh ${SHA::7}\`"
           } >> "$GITHUB_STEP_SUMMARY"

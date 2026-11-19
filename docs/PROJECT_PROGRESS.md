@@ -11,8 +11,8 @@
 | C | Organisation du dépôt DevOps | ✅ Terminé |
 | D | Intégration continue (GitHub Actions) | ✅ Terminé |
 | E | Conteneurisation Docker | ✅ Terminé |
-| F | Registre de conteneurs (GHCR) | 🔄 En cours |
-| G | Déploiement continu | ⏳ À faire |
+| F | Registre de conteneurs (GHCR) | ✅ Terminé |
+| G | Déploiement continu | 🔄 En cours |
 | H | Préparation de Minikube | ⏳ À faire |
 | — | Préparation K8s (Flyway, sondes, métriques) | ⏳ À faire |
 | I – L | Manifests, déploiement Minikube, K8s avancé, Helm | ⏳ À faire |
@@ -86,13 +86,30 @@
 | Persistance après `down` / `up` | Projet retrouvé (volume `trackr_pgdata` conservé) |
 | Démarrage ordonné | db healthy → backend healthy (≈ 22 s) → frontend |
 
-## Phase F — Registre de conteneurs (GHCR) 🔄
+## Phase F — Registre de conteneurs (GHCR) ✅
 
 - Workflow `publish.yml` : après une CI verte sur `main`/`develop`, sur tag `vX.Y.Z` ou manuellement
 - Build → test de fumée (backend avec PostgreSQL, frontend : page Trackr + route SPA, utilisateur non-root) → push
 - Tags : `sha-<7>` (immuable), `develop`/`main`, `latest` (main), `X.Y.Z`/`X.Y` (release)
 - `docker-compose.prod.yml` accepte `BACKEND_IMAGE` / `FRONTEND_IMAGE` pour lancer les images publiées
-- Validation à faire : images visibles sur GHCR, `docker pull`, démarrage de la stack avec les images publiées
+- Branche par défaut du fork passée à `develop` (condition pour `workflow_run`, ADR-012)
+
+### Résultats de validation (2026-11-19)
+
+| Test | Résultat |
+|---|---|
+| Publish (run 44535323193) | ✅ backend 3 min 55 s (test de fumée avec PostgreSQL) · frontend 1 min 44 s |
+| Packages GHCR | `trackr-backend`, `trackr-frontend` — publics |
+| `docker pull` sans identifiants | ✅ `sha-9482132` (backend `sha256:12c4b431…`, frontend `sha256:c5dd7a4f…`) |
+| Stack lancée avec les images publiées (`--no-build`) | 3 conteneurs *healthy*, `<title>Trackr</title>`, API `UP` |
+| Traçabilité | label `org.opencontainers.image.revision` = commit `948213298afd…` de `develop` |
+
+## Phase G — Déploiement continu 🔄
+
+- Stratégie : *Continuous Delivery* — la CI produit automatiquement des images testées ; le déploiement local est tiré par la machine (`scripts/deploy.sh`), rien n'est exposé (ADR-013)
+- `scripts/deploy.sh` : vérifie la publication sur GHCR, déploie, attend les healthchecks, contrôle page + API + image en cours, revient automatiquement à la version précédente en cas d'échec ; `--rollback`, `--status`, historique dans `.deploy/`
+- Script testé sur 10 scénarios simulés (succès, version non publiée, API cassée, conteneur unhealthy, retours arrière automatique et manuel, argument invalide)
+- Validation à faire : déploiements réels successifs, échec simulé avec retour arrière, `--status`
 
 ## Problèmes connus
 
@@ -113,4 +130,4 @@ Problème local résolu : le port 8080 était occupé par le listener Oracle (`T
 
 ## Prochaine action recommandée
 
-Fusionner la PR de la phase F, vérifier la publication sur GHCR, puis lancer la stack avec les images publiées.
+Valider `scripts/deploy.sh` sur la machine locale (déploiement, échec simulé, retour arrière), puis passer à la phase H (Minikube).

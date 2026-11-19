@@ -92,3 +92,21 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
   - Le tag `sha-<7>` est immuable et c'est lui qu'on déploie ; `develop`, `main` et `latest` sont des tags mobiles de confort ; `X.Y.Z` pour les releases.
   - Un test de fumée s'exécute sur l'image construite avant tout push : une image qui ne démarre pas n'est jamais publiée.
 - **Limite connue :** un tag `vX.Y.Z` est publié sans attendre la CI. Il doit être posé sur un commit de `main` déjà validé (procédure formalisée en phase G).
+
+## ADR-012 — `develop` comme branche par défaut du fork
+
+- **Date :** 2026-11-19 · **Statut :** acceptée
+- **Contexte :** GitHub ne déclenche un workflow `workflow_run` (et ne liste un workflow manuel) que s'il existe sur la branche par défaut. `publish.yml` n'existait que sur `develop`, la branche par défaut étant `main`.
+- **Décision :** branche par défaut = `develop` (modèle git-flow). `main` ne reçoit que des versions stables.
+- **Conséquences :** Publish se déclenche automatiquement après chaque CI verte ; les PR proposent `develop` comme base par défaut.
+
+## ADR-013 — Stratégie de déploiement continu local
+
+- **Date :** 2026-11-19 · **Statut :** acceptée
+- **Contexte :** les runners hébergés par GitHub ne peuvent pas joindre la machine locale (Docker Compose aujourd'hui, Minikube ensuite). Deux options : un runner auto-hébergé sur la machine, ou un déploiement déclenché localement.
+- **Décision :** script de déploiement local (`scripts/deploy.sh`) qui *tire* une version déjà publiée. Pas de runner auto-hébergé.
+- **Raisons :**
+  - Le dépôt est un fork **public** : un runner auto-hébergé pourrait exécuter sur la machine personnelle du code venant d'une PR externe — GitHub déconseille explicitement ce montage.
+  - Le modèle « pull » n'ouvre aucun port et ne donne à GitHub aucun accès à la machine.
+  - Seules des versions publiées (donc testées par la CI et le test de fumée) sont déployables.
+- **Conséquences :** *Continuous Delivery* en local (chaque commit sur `develop` produit une version déployable en une commande) ; *Continuous Deployment* complet sur AWS (phase Y), où GitHub Actions peut joindre EKS via OIDC. Le script sera étendu à Minikube (Helm) en phase L.
