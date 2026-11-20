@@ -110,7 +110,15 @@
 - `scripts/deploy.sh` : vérifie la publication sur GHCR, déploie, attend les healthchecks, contrôle page + API + image en cours, revient automatiquement à la version précédente en cas d'échec ; `--rollback`, `--status`, historique dans `.deploy/`
 - Script testé sur 10 scénarios simulés (succès, version non publiée, API cassée, conteneur unhealthy, retours arrière automatique et manuel, argument invalide)
 - Validation à faire : déploiements réels successifs, échec simulé avec retour arrière, `--status`
+## Phase K — Kubernetes avancé 🔄
 
+### K1 — Migrations Flyway ✅
+| Cas | Résultat (2026-11-20) |
+|---|---|
+| Base vide (CI) | V1 exécutée, Hibernate `validate` OK, 126 tests ✅ |
+| Base existante (Minikube) | `Successfully baselined schema with version: 1` (type BASELINE) |
+| Données | 1 utilisateur, 2 projets, 2 tâches avant et après |
+| V2 (descriptions 1000 caractères) | Bug HTTP 500 reproduit, puis corrigé par migration |
 ## Problèmes connus
 
 | # | Problème | Gravité | Phase prévue |
@@ -127,6 +135,8 @@
 | 10 | Spring Boot 3.2.5 n'est plus maintenu en open source | 🟡 | Hors périmètre (à documenter) |
 | 11 | Le formulaire de connexion affiche « Invalid email or password » pour toute erreur sans champ `message` (429 du rate limiting, 403 CORS) | 🟡 | Hors périmètre DevOps (bug applicatif documenté) |
 | 12 | Derrière un proxy/port-forward, plusieurs clients partagent la même IP pour le rate limiting | 🟠 | M |
+| 13 | Flyway 9.22 (imposé par Spring Boot 3.2) non certifié pour PostgreSQL 16 — fonctionne, avertissement au démarrage | 🟡 | Mise à jour de Spring Boot (lié au n°10) |
+| 14 | Descriptions > 255 caractères → HTTP 500 (validation API à 1000) | 🟠 | Résolu (migration V2) |
 
 Problème local résolu : le port 8080 était occupé par le listener Oracle (`TNSLSNR`) sur la machine de développement ; Oracle a été arrêté.
 
