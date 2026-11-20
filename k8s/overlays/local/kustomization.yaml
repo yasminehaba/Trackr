@@ -15,10 +15,10 @@ resources:
 images:
   - name: trackr-backend
     newName: ghcr.io/yasminehaba/trackr-backend
-    newTag: sha-8261cd4
+    newTag: sha-48c6c54
   - name: trackr-frontend
     newName: ghcr.io/yasminehaba/trackr-frontend
-    newTag: sha-8261cd4
+    newTag: sha-48c6c54
 
 # Secrets générés à partir de fichiers locaux ignorés par Git (*.env).
 # Kustomize ajoute un suffixe (hash du contenu) au nom : modifier un secret
@@ -49,4 +49,5 @@ patches:
     patch: |-
       - op: replace
         path: /data/CORS_ALLOWED_ORIGINS
-        value: http://trackr.local
+        # :8088 = accès par port-forward du contrôleur Ingress (voir docs)
+        value: http://trackr.local,http://trackr.local:8088
