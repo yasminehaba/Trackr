@@ -32,7 +32,7 @@ management:
     web:
       exposure:
         include: health
-    endpoint:
+  endpoint:
     health:
       show-details: never
       # /actuator/health/liveness et /actuator/health/readiness (sondes Kubernetes)
@@ -42,7 +42,6 @@ management:
         # Le pod ne reçoit du trafic que si la base de données répond.
         readiness:
           include: readinessState,db
-
 jwt:
   secret: ${JWT_SECRET}
   access-expiration: ${JWT_ACCESS_EXPIRATION:900000}
