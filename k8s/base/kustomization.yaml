@@ -1,0 +1,11 @@
+# Base Kustomize : les ressources communes à tous les environnements.
+# Ne pas appliquer directement : utiliser un overlay (k8s/overlays/local).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - config.yaml
+  - postgres.yaml
+  - backend.yaml
+  - frontend.yaml
+  - ingress.yaml

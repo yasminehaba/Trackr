@@ -1,0 +1,8 @@
+# Espace de noms dédié : isole Trackr des autres applications du cluster
+# (voting-app, ingress-nginx, kube-system...).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trackr
+  labels:
+    app.kubernetes.io/part-of: trackr

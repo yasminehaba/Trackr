@@ -1,0 +1,29 @@
+# Point d'entrée HTTP unique : /api → backend, tout le reste → frontend.
+# Le host est défini par chaque overlay (trackr.local pour Minikube).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trackr
+  labels:
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/part-of: trackr
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: trackr.example
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: trackr-backend
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: trackr-frontend
+                port:
+                  name: http
