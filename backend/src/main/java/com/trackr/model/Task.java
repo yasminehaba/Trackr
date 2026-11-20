@@ -29,7 +29,8 @@ public class Task {
     @NotBlank
     @Column(nullable = false)
     private String title;
-
+    
+    @Column(length = 1000)
     private String description;
 
     @Enumerated(EnumType.STRING)
