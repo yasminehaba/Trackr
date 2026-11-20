@@ -127,3 +127,10 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 
 - **Date :** 2026-11-20 · **Statut :** acceptée
 - **Décision :** en local, PostgreSQL tourne dans le cluster (StatefulSet + PVC). Sur AWS, il sera remplacé par RDS (phase X).
+
+## ADR-017 — Migrations de schéma avec Flyway
+
+- **Date :** 2026-11-20 · **Statut :** acceptée
+- **Contexte :** Hibernate (`ddl-auto: update`) modifiait le schéma au démarrage : pas d'historique, pas de relecture, et des conflits si plusieurs pods démarrent sur une base vide (backend limité à 1 réplique).
+- **Décision :** Flyway gère le schéma (`db/migration/V<n>__*.sql`) ; Hibernate passe en `validate`. V1 reproduit exactement le schéma existant (vérifié par comparaison `pg_dump` : 79 lignes de DDL identiques). `baseline-on-migrate` marque les bases existantes comme étant en V1.
+- **Conséquences :** migrations relues en PR et testées par la CI (base vide → V1 → validation Hibernate) ; verrou Flyway lors des démarrages simultanés ; un fichier de migration appliqué ne se modifie jamais.
