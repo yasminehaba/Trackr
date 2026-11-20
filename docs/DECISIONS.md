@@ -110,3 +110,20 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
   - Le modèle « pull » n'ouvre aucun port et ne donne à GitHub aucun accès à la machine.
   - Seules des versions publiées (donc testées par la CI et le test de fumée) sont déployables.
 - **Conséquences :** *Continuous Delivery* en local (chaque commit sur `develop` produit une version déployable en une commande) ; *Continuous Deployment* complet sur AWS (phase Y), où GitHub Actions peut joindre EKS via OIDC. Le script sera étendu à Minikube (Helm) en phase L.
+
+## ADR-014 — Kustomize (base + overlays) pour les manifests
+
+- **Date :** 2026-11-20 · **Statut :** acceptée
+- **Décision :** `k8s/base` contient les ressources communes ; chaque environnement est un overlay (`k8s/overlays/local`, plus tard `aws`). Kustomize est intégré à `kubectl`.
+- **Conséquences :** pas de copie entre environnements ; secrets générés depuis des fichiers locaux ignorés par Git, avec un suffixe de hash qui redémarre les pods quand ils changent.
+
+## ADR-015 — Sondes Kubernetes du backend
+
+- **Date :** 2026-11-20 · **Statut :** acceptée
+- **Décision :** groupes Actuator `liveness` et `readiness` activés ; seuls ces deux chemins sont publics et exclus du rate limiting. `readiness` inclut la base de données, `liveness` non.
+- **Raison :** si PostgreSQL tombe, les pods backend sont retirés du trafic au lieu d'être redémarrés en boucle (un redémarrage ne réparerait pas la base).
+
+## ADR-016 — PostgreSQL en StatefulSet sur Minikube
+
+- **Date :** 2026-11-20 · **Statut :** acceptée
+- **Décision :** en local, PostgreSQL tourne dans le cluster (StatefulSet + PVC). Sur AWS, il sera remplacé par RDS (phase X).

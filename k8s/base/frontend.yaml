@@ -1,0 +1,103 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Frontend Angular servi par nginx — ServiceAccount + Deployment + Service.
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trackr-frontend
+  labels:
+    app.kubernetes.io/name: trackr-frontend
+    app.kubernetes.io/part-of: trackr
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trackr-frontend
+  labels:
+    app.kubernetes.io/name: trackr-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: trackr
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trackr-frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: trackr-frontend
+        app.kubernetes.io/component: frontend
+        app.kubernetes.io/part-of: trackr
+    spec:
+      serviceAccountName: trackr-frontend
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: frontend
+          image: trackr-frontend         # remplacée par l'overlay
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # Utilisé par le proxy /api de nginx (l'Ingress route aussi /api directement).
+            - name: BACKEND_URL
+              value: http://trackr-backend:8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          # nginx écrit sa config générée (template) et ses fichiers temporaires :
+          # seuls ces deux dossiers sont inscriptibles.
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: nginx-conf
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trackr-frontend
+  labels:
+    app.kubernetes.io/name: trackr-frontend
+    app.kubernetes.io/part-of: trackr
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: trackr-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

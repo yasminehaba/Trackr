@@ -29,7 +29,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // Skip health endpoints
-        if (path.equals("/api/health") || path.equals("/actuator/health")) {
+                // Skip health endpoints (including Kubernetes liveness/readiness probes)
+        if (path.equals("/api/health") || path.equals("/actuator/health")
+                || path.equals("/actuator/health/liveness")
+                || path.equals("/actuator/health/readiness")) {
             filterChain.doFilter(request, response);
             return;
         }

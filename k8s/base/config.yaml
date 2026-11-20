@@ -1,0 +1,16 @@
+# Configuration non sensible partagée (les secrets sont générés par l'overlay).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trackr-config
+  labels:
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: trackr
+data:
+  POSTGRES_DB: trackr
+  SPRING_PROFILES_ACTIVE: prod
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/trackr
+  # Remplacée par chaque overlay (URL publique de l'application).
+  CORS_ALLOWED_ORIGINS: http://localhost
+  JWT_ACCESS_EXPIRATION: "900000"
+  JWT_REFRESH_EXPIRATION: "604800000"
