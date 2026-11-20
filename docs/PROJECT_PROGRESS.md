@@ -125,9 +125,36 @@
 | 8 | CI limitée à `main`, sans `permissions`, sans rapports, sans build | 🟡 | D |
 | 9 | Swagger public en production | 🟡 | M |
 | 10 | Spring Boot 3.2.5 n'est plus maintenu en open source | 🟡 | Hors périmètre (à documenter) |
+| 11 | Le formulaire de connexion affiche « Invalid email or password » pour toute erreur sans champ `message` (429 du rate limiting, 403 CORS) | 🟡 | Hors périmètre DevOps (bug applicatif documenté) |
+| 12 | Derrière un proxy/port-forward, plusieurs clients partagent la même IP pour le rate limiting | 🟠 | M |
 
 Problème local résolu : le port 8080 était occupé par le listener Oracle (`TNSLSNR`) sur la machine de développement ; Oracle a été arrêté.
 
 ## Prochaine action recommandée
 
 Valider `scripts/deploy.sh` sur la machine locale (déploiement, échec simulé, retour arrière), puis passer à la phase H (Minikube).
+## Phase I — Manifests Kubernetes ✅
+
+- Kustomize : `k8s/base` + `k8s/overlays/local` (images GHCR, secrets générés, host `trackr.local`)
+- PostgreSQL en StatefulSet + PVC 2 Gi ; backend 1 réplique ; frontend 2 répliques ; Ingress `/api` et `/`
+- Pods durcis : non-root, lecture seule, capabilities retirées, seccomp, requests/limits
+- Sondes backend liveness/readiness (readiness inclut la base) — CI 126/126 ✅ (PR #5)
+- `kubectl kustomize` : 13 ressources · dry-run serveur sans erreur
+
+## Phase J — Déploiement sur Minikube ✅
+
+Version déployée : `sha-48c6c54` (2026-11-20) · Accès : `http://trackr.local:8088` (port-forward du contrôleur ingress-nginx)
+
+| Étape | Résultat |
+|---|---|
+| Namespace, ConfigMap, Secrets | Créés ; secrets avec suffixe de hash |
+| PostgreSQL | `postgres-0` 1/1, PVC `data-postgres-0` Bound 2 Gi |
+| Backend | 1/1 Ready — readiness `UP` = connexion PostgreSQL validée |
+| Frontend | 2/2 Ready |
+| Services | `postgres` headless ; backend et frontend en ClusterIP (aucune IP externe) |
+| Ingress | `/api` → backend, `/` → 2 pods frontend ; 404 sans le bon host |
+| Cohérence | `kubectl diff -k` : aucune différence (exit 0) |
+| Tests API | Connexion, projet, tâche, statut Kanban, dashboard |
+| Tests navigateur | Inscription, connexion, projet, tâche, glisser-déposer persistant, dashboard |
+
+Incident résolu : connexion refusée dans le navigateur (403) alors que `curl` réussissait. Cause : CORS — l'origine `http://trackr.local:8088` n'était pas autorisée (Spring Boot sur Kubernetes calcule son origine avec `X-Forwarded-Port: 80`). Correction : origine ajoutée dans l'overlay, puis `kubectl rollout restart` (variables d'environnement lues au démarrage).
