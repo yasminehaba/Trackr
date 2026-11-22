@@ -134,3 +134,10 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 - **Contexte :** Hibernate (`ddl-auto: update`) modifiait le schéma au démarrage : pas d'historique, pas de relecture, et des conflits si plusieurs pods démarrent sur une base vide (backend limité à 1 réplique).
 - **Décision :** Flyway gère le schéma (`db/migration/V<n>__*.sql`) ; Hibernate passe en `validate`. V1 reproduit exactement le schéma existant (vérifié par comparaison `pg_dump` : 79 lignes de DDL identiques). `baseline-on-migrate` marque les bases existantes comme étant en V1.
 - **Conséquences :** migrations relues en PR et testées par la CI (base vide → V1 → validation Hibernate) ; verrou Flyway lors des démarrages simultanés ; un fichier de migration appliqué ne se modifie jamais.
+
+## ADR-018 — Autoscaling horizontal du backend (HPA)
+
+- **Date :** 2026-11-22 · **Statut :** acceptée
+- **Décision :** HPA `autoscaling/v2` sur le CPU (cible 70 % de la request 250m), entre 2 et 4 répliques ; montée immédiate (+2 pods/30 s), descente prudente (2 min de stabilisation, −1 pod/min). Le Deployment ne fixe plus `replicas`.
+- **Observation :** au démarrage, la JVM consomme beaucoup de CPU (classes, JIT, Hibernate, Flyway) : le HPA est monté à 4 répliques sans trafic, puis redescendu à 2. Pistes si nécessaire : fenêtre de stabilisation en montée, request CPU ajustée, métriques applicatives (Prometheus, phase P).
+- **Limite :** rate limiting en mémoire par pod (problème connu n°4).

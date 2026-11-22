@@ -20,10 +20,10 @@ metadata:
     app.kubernetes.io/component: backend
     app.kubernetes.io/part-of: trackr
 spec:
-  # 1 réplique tant que le schéma est créé par Hibernate (ddl-auto) :
-  # deux pods qui démarrent ensemble sur une base vide se gêneraient.
-  # Passage à 2+ répliques après l'introduction de Flyway (phase K).
-  replicas: 1
+  # Pas de champ « replicas » : c'est le HorizontalPodAutoscaler qui le gère
+  # (k8s/base/backend-hpa.yaml, entre 2 et 4 répliques). S'il était fixé ici,
+  # chaque « kubectl apply » écraserait la décision de l'autoscaler.
+  # Plusieurs répliques sont sûres depuis Flyway (verrou de migration).
   revisionHistoryLimit: 5
   strategy:
     type: RollingUpdate

@@ -150,6 +150,14 @@ Valider `scripts/deploy.sh` sur la machine locale (déploiement, échec simulé,
 - Pods durcis : non-root, lecture seule, capabilities retirées, seccomp, requests/limits
 - Sondes backend liveness/readiness (readiness inclut la base) — CI 126/126 ✅ (PR #5)
 - `kubectl kustomize` : 13 ressources · dry-run serveur sans erreur
+### K2 — Scalabilité ✅
+| Test | Résultat (2026-11-22) |
+|---|---|
+| 2 répliques backend | 2 pods Ready, 2 IP dans l'EndpointSlice (Flyway : démarrage simultané sans conflit) |
+| `kubectl scale` frontend | 3 pods, puis retour à 2 par `kubectl apply -k` (Git = source de vérité) |
+| `kubectl scale` backend à 1 | Annulé par le HPA : « below Spec.MinReplicas » → 2 |
+| HPA | 2 → 4 (pic CPU au démarrage de la JVM) → 3 → 2 (« All metrics below target ») |
+| Test de charge (busybox) | À faire |
 
 ## Phase J — Déploiement sur Minikube ✅
 

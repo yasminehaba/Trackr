@@ -15,10 +15,10 @@ resources:
 images:
   - name: trackr-backend
     newName: ghcr.io/yasminehaba/trackr-backend
-    newTag: sha-c564f19
+    newTag: sha-c79d2d0
   - name: trackr-frontend
     newName: ghcr.io/yasminehaba/trackr-frontend
-    newTag: sha-c564f19
+    newTag: sha-c79d2d0
 
 # Secrets générés à partir de fichiers locaux ignorés par Git (*.env).
 # Kustomize ajoute un suffixe (hash du contenu) au nom : modifier un secret
