@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Autoscaling horizontal du backend selon l'utilisation CPU.
+# Nécessite metrics-server (addon Minikube) et des « requests » CPU sur le
+# conteneur : le pourcentage est calculé par rapport à la request (250m).
+# ─────────────────────────────────────────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: trackr-backend
+  labels:
+    app.kubernetes.io/name: trackr-backend
+    app.kubernetes.io/part-of: trackr
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: trackr-backend
+  minReplicas: 2           # haute disponibilité : un pod peut tomber sans coupure
+  maxReplicas: 4           # plafond : protège le cluster (4 × 512Mi de requests)
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70   # cible : 70 % de 250m ≈ 175m par pod
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0      # réagir tout de suite à un pic
+      policies:
+        - type: Pods
+          value: 2                       # au plus +2 pods...
+          periodSeconds: 30              # ...toutes les 30 s
+    scaleDown:
+      stabilizationWindowSeconds: 120    # attendre 2 min de calme avant de réduire
+      policies:
+        - type: Pods
+          value: 1                       # retirer 1 pod à la fois
+          periodSeconds: 60
