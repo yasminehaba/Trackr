@@ -157,7 +157,19 @@ Valider `scripts/deploy.sh` sur la machine locale (déploiement, échec simulé,
 | `kubectl scale` frontend | 3 pods, puis retour à 2 par `kubectl apply -k` (Git = source de vérité) |
 | `kubectl scale` backend à 1 | Annulé par le HPA : « below Spec.MinReplicas » → 2 |
 | HPA | 2 → 4 (pic CPU au démarrage de la JVM) → 3 → 2 (« All metrics below target ») |
-| Test de charge (busybox) | À faire |
+| Test de charge (busybox, 30 boucles sur `/api/health`) | CPU 1 % → 360 % → 2 puis 4 répliques (plafond) ; arrêt → 1 % → 3 → 2 après 2 min de stabilisation (`docs/k8s-hpa-loadtest.log`) |
+### K3 — Cycle de vie et résilience ✅
+| Test | Résultat (2026-11-22/23) |
+|---|---|
+| Rolling update frontend (`kubectl set image`) | Pod par pod ; ReplicaSet `5c9f6cf5bc` (version déjà connue) réutilisé |
+| `rollout history` / `rollout undo` | Révisions 2-4 avec change-cause ; retour à `sha-c79d2d0` |
+| Déploiement raté (image inexistante) | Nouveau pod `ErrImagePull`, les 2 anciens restent `1/1` ; `undo` répare ; `diff exit=0` |
+| PostgreSQL arrêté | Pods backend démarrés : `0/1`, RESTARTS 0 (readiness) ; pods en démarrage : `CrashLoopBackOff` ; retour automatique après rétablissement |
+| Arrêt complet du cluster | Redémarrages désordonnés (backend sans base, nginx sans DNS), puis convergence sans intervention |
+| Dérive `replicas: 0` | `kubectl diff` : `0 → 1` ; restaurée par `kubectl apply -k` |
+| Pod `postgres-0` supprimé | Recréé avec le même nom et le même PVC (`2d23h`) ; 3 projets intacts |
+
+Leçons : un rollback d'urgence (`rollout undo`) ne remplace pas une correction dans Git ; les événements Kubernetes expirent au bout d'une heure (→ Prometheus en phase P).
 
 ## Phase J — Déploiement sur Minikube ✅
 

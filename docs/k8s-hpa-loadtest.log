@@ -1,0 +1,13 @@
+NAME             REFERENCE                   TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+trackr-backend   Deployment/trackr-backend   cpu: 1%/70%   2         4         2          19h
+trackr-backend   Deployment/trackr-backend   cpu: 40%/70%   2         4         2          19h
+trackr-backend   Deployment/trackr-backend   cpu: 40%/70%   2         4         2          19h
+trackr-backend   Deployment/trackr-backend   cpu: 360%/70%   2         4         2          19h
+trackr-backend   Deployment/trackr-backend   cpu: 360%/70%   2         4         4          19h
+trackr-backend   Deployment/trackr-backend   cpu: 201%/70%   2         4         4          19h
+trackr-backend   Deployment/trackr-backend   cpu: 240%/70%   2         4         4          19h
+trackr-backend   Deployment/trackr-backend   cpu: 70%/70%    2         4         4          19h
+trackr-backend   Deployment/trackr-backend   cpu: 1%/70%     2         4         4          19h
+trackr-backend   Deployment/trackr-backend   cpu: 1%/70%     2         4         4          19h
+trackr-backend   Deployment/trackr-backend   cpu: 1%/70%     2         4         4          19h
+trackr-backend   Deployment/trackr-backend   cpu: 1%/70%     2         4         3          19h
