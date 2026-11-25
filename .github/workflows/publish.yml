@@ -158,8 +158,32 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/projects/1)" = "200"
           test "$(docker inspect -f '{{.Config.User}}' trackr-frontend:ci)" = "101"
           echo "Frontend OK : page Trackr, route SPA, utilisateur non-root"
+      # ── 4. Scanner l'image (paquets de l'OS + bibliothèques embarquées) ───
+      # Bloquant : aucune image avec une vulnérabilité HIGH/CRITICAL corrigeable
+      # n'est publiée. Exceptions justifiées : .trivyignore (ADR-022).
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: trackr-${{ matrix.service }}:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+          format: table
+          output: trivy-image-${{ matrix.service }}.txt
+          exit-code: '1'
 
-      # ── 4. Publier (uniquement si le test de fumée a réussi) ──────────────
+      - name: Image scan summary
+        if: always()
+        run: |
+          {
+            echo "### 🔍 Scan de l'image trackr-${{ matrix.service }}"
+            echo '```'
+            cat "trivy-image-${{ matrix.service }}.txt" 2>/dev/null || echo "Aucun rapport généré."
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      # ── 5. Publier (uniquement si le test de fumée et le scan ont réussi) ─      
+      
       - name: Log in to GHCR
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
