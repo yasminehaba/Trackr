@@ -189,6 +189,5 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 - **Date :** 2026-11-25 · **Statut :** acceptée
 - **Contexte :** le scan bloquant a révélé 9 vulnérabilités (3 critiques) dans Spring Security 6.2.4 et Spring Framework 6.1.6, apportés par Spring Boot 3.2.5 (hors support).
 - **Décision :** Spring Boot 3.5.16 (dernière version OSS de la génération 3.x), qui embarque Spring Framework 6.2.19. Dépendances alignées : `flyway-database-postgresql` (Flyway 10+), springdoc 2.8.14.
-- **Exception unique :** CVE-2026-47884 (XsltView), corrigée seulement en Spring Framework 7 ; non exploitable (API REST, aucune vue XSLT). Expire le 2027-02-28.
-- **Effets :** CVE-2026-22733 corrigée (exception retirée) ; avertissement Flyway/PostgreSQL 16 résolu (problème n°13).
-- **Dette restante :** la génération 3.5 n'a plus de support OSS depuis juin 2026 ; la migration vers Spring Boot 4.x reste à planifier.
+- **Surcharges de versions (scan du jar dans l'image) :** Jackson 2.21.7 (5 CVE HIGH), Tomcat 10.1.59 (5 CRITICAL, 1 HIGH). Le scan du `pom.xml` seul ne les voyait pas : seul le scan de l'artefact final montre les dépendances transitives réellement embarquées.
+- **Exceptions :** CVE-2026-47884 (XsltView) et CVE-2026-47890 (SSE avec fragments de vue), corrigées seulement en Spring Framework 7 ; non exploitables (API REST, ni vue ni SSE). Expirent le 2027-02-28.

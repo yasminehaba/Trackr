@@ -12,3 +12,9 @@
 # Correctif uniquement en Spring Framework 7.0.9 (Spring Boot 4) : aucune
 # version 3.x corrigée. Voir ADR-024.
 CVE-2026-47884 exp:2027-02-28
+
+# CVE-2026-47890 — Spring Framework (spring-webmvc) : corruption du flux
+# Server-Sent Events lors du rendu de fragments de vue.
+# Non exploitable dans Trackr : aucun SSE, aucune vue rendue côté serveur.
+# Correctif uniquement en Spring Framework 7.0.9 (Spring Boot 4). Voir ADR-024.
+CVE-2026-47890 exp:2027-02-28
