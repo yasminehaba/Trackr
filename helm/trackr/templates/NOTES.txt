@@ -1,0 +1,14 @@
+Trackr {{ .Values.image.tag }} déployé dans le namespace « {{ .Release.Namespace }} » (révision {{ .Release.Revision }}).
+
+1. Suivre le démarrage :
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }} -w
+
+{{- if .Values.ingress.enabled }}
+
+2. Accès (avec le port-forward du contrôleur Ingress sur le port 8088) :
+   http://{{ .Values.ingress.host }}:8088
+{{- end }}
+
+3. Historique et retour arrière :
+   helm history {{ .Release.Name }} -n {{ .Release.Namespace }}
+   helm rollback {{ .Release.Name }} <révision> -n {{ .Release.Namespace }}

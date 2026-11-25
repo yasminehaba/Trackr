@@ -1,0 +1,84 @@
+{{- if .Values.networkPolicies.enabled }}
+{{- /*
+  « Tout refuser puis autoriser » pour le trafic entrant (ADR-020).
+  Appliquées seulement par un CNI compatible (Calico, Cilium, VPC CNI d'EKS) :
+  le CNI par défaut de Minikube les accepte sans les appliquer.
+*/}}
+{{- $ingressNs := .Values.networkPolicies.ingressControllerNamespace }}
+{{- $backend := dict "root" . "component" "backend" }}
+{{- $frontend := dict "root" . "component" "frontend" }}
+{{- $postgres := dict "root" . "component" "postgres" }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "trackr.fullname" . }}-default-deny-ingress
+  labels:
+    {{- include "trackr.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "trackr.componentName" $frontend }}-allow-ingress-controller
+  labels:
+    {{- include "trackr.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "trackr.selectorLabels" $frontend | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $ingressNs }}
+      ports:
+        - { port: 8080, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "trackr.componentName" $backend }}-allow-ingress-and-frontend
+  labels:
+    {{- include "trackr.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "trackr.selectorLabels" $backend | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:          # OU…
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $ingressNs }}
+        - podSelector:                # …depuis le frontend
+            matchLabels:
+              {{- include "trackr.selectorLabels" $frontend | nindent 14 }}
+      ports:
+        - { port: 8080, protocol: TCP }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "trackr.componentName" $postgres }}-allow-backend
+  labels:
+    {{- include "trackr.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "trackr.selectorLabels" $postgres | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "trackr.selectorLabels" $backend | nindent 14 }}
+      ports:
+        - { port: 5432, protocol: TCP }
+{{- end }}

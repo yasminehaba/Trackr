@@ -1,0 +1,6 @@
+# Fichiers exclus du paquet du chart (helm package)
+.git/
+*.swp
+*.bak
+*.tmp
+.DS_Store

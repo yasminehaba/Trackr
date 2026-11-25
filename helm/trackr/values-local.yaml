@@ -1,0 +1,14 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Surcharges pour Minikube.
+#   helm upgrade --install trackr helm/trackr -n trackr-helm --create-namespace \
+#     -f helm/trackr/values-local.yaml --set image.tag=sha-xxxxxxx
+# ─────────────────────────────────────────────────────────────────────────────
+
+# *.localhost est résolu vers 127.0.0.1 par les navigateurs et curl :
+# aucune modification du fichier hosts n'est nécessaire.
+publicUrl: http://trackr-helm.localhost
+extraCorsOrigins:
+  - http://trackr-helm.localhost:8088     # accès par port-forward du contrôleur Ingress
+
+ingress:
+  host: trackr-helm.localhost

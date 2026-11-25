@@ -172,18 +172,45 @@ jobs:
           name: trivy-report
           path: trivy-report.txt
           retention-days: 14
+  # ── Helm : le chart doit rester valide ─────────────────────────────────────
+  helm:
+    name: Helm — lint & render
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Helm
+        uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
+
+      - name: Lint chart
+        run: helm lint helm/trackr -f helm/trackr/values-local.yaml --set image.tag=sha-ci
+
+      # Rend tous les templates : une erreur de syntaxe ou de valeur échoue ici.
+      - name: Render chart
+        run: |
+          helm template trackr helm/trackr -n trackr-helm \
+            -f helm/trackr/values-local.yaml --set image.tag=sha-ci > rendered.yaml
+          echo "Ressources rendues : $(grep -c '^kind:' rendered.yaml)"
+
+      # Le garde-fou doit refuser un rendu sans tag d'image.
+      - name: Image tag is required
+        run: |
+          if helm template trackr helm/trackr -f helm/trackr/values-local.yaml >/dev/null 2>&1; then
+            echo "::error::Le chart accepte un rendu sans image.tag"; exit 1
+          fi
   # ── Résultat global : un seul « check » à exiger dans la protection de branche
   ci-status:
     name: CI status
     if: always()
-    needs: [backend, frontend, security]
+    needs: [backend, frontend, security, helm]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
         run: |
-          echo "backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} security=${{ needs.security.result }}"
-          if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ]; then
-            echo "::error::Au moins un job obligatoire a échoué."
-            exit 1
-          fi
+          echo "backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} helm=${{ needs.helm.result }} security=${{ needs.security.result }}"
+          if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.helm.result }}" != "success" ]; then
