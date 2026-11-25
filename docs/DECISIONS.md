@@ -141,3 +141,18 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 - **Décision :** HPA `autoscaling/v2` sur le CPU (cible 70 % de la request 250m), entre 2 et 4 répliques ; montée immédiate (+2 pods/30 s), descente prudente (2 min de stabilisation, −1 pod/min). Le Deployment ne fixe plus `replicas`.
 - **Observation :** au démarrage, la JVM consomme beaucoup de CPU (classes, JIT, Hibernate, Flyway) : le HPA est monté à 4 répliques sans trafic, puis redescendu à 2. Pistes si nécessaire : fenêtre de stabilisation en montée, request CPU ajustée, métriques applicatives (Prometheus, phase P).
 - **Limite :** rate limiting en mémoire par pod (problème connu n°4).
+
+
+## ADR-019 — RBAC à privilèges minimaux
+
+- **Date :** 2026-11-23 · **Statut :** acceptée
+- **Décision :** deux ServiceAccounts limités au namespace `trackr` : `trackr-viewer` (lecture seule) et `trackr-deployer` (modification des Deployments, sans création ni suppression). Aucun accès aux Secrets.
+- **Vérification :** `kubectl auth can-i --as=system:serviceaccount:trackr:...` et refus réel (`Forbidden`) sur `get secrets`.
+
+## ADR-020 — NetworkPolicies écrites mais non appliquées sur Minikube
+
+- **Date :** 2026-11-23 · **Statut :** acceptée
+- **Contexte :** le CNI par défaut du cluster Minikube existant n'applique pas les NetworkPolicies. Les tester demanderait un cluster avec Calico (nouveau profil ou recréation du cluster).
+- **Décision :** modèle « tout refuser puis autoriser » (Ingress → frontend/backend, frontend → backend, backend → PostgreSQL), versionné dans `k8s/base`, appliqué sur EKS (phase W). Non démontré localement.
+- **Preuve de la limite :** un pod de `voting-app` atteint `postgres:5432` malgré la règle (`nc` : open).
+- **À faire :** ajouter le namespace `monitoring` (phase P) ; restreindre le trafic sortant (egress) en phase M.

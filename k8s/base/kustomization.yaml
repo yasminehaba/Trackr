@@ -10,3 +10,5 @@ resources:
   - backend-hpa.yaml
   - frontend.yaml
   - ingress.yaml
+  - rbac.yaml
+  - networkpolicies.yaml
