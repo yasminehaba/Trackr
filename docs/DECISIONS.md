@@ -2,6 +2,7 @@
 
 Chaque décision importante est notée ici avec son contexte et ses conséquences,
 pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'équipe).
+Une décision n'est jamais effacée : si elle change, elle est marquée « remplacée » et renvoie vers la nouvelle.
 
 ---
 
@@ -15,8 +16,8 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 ## ADR-002 — Modèle de branches
 
 - **Date :** 2026-11-19 · **Statut :** acceptée
-- **Décision :** `main` (stable, démontrable) ← `develop` (intégration) ← branches de travail `devops/*` et `feature/*`. Fusion uniquement par Pull Request.
-- **Conséquences :** `main` reste toujours déployable ; chaque PR déclenchera la CI (phase D).
+- **Décision :** `main` (stable, démontrable) ← `develop` (intégration) ← branches de travail (`devops/*`, `feature/*`, `security/*`, `fix/*`, `docs/*`). Fusion uniquement par Pull Request.
+- **Conséquences :** `main` reste toujours déployable ; chaque PR déclenche la CI.
 
 ## ADR-003 — Authentification Git par clé SSH
 
@@ -29,7 +30,7 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 
 - **Date :** 2026-11-19 · **Statut :** acceptée
 - **Contexte :** Java et Node ne sont pas installés dans WSL ; les versions Windows de Maven et npm sont dans le PATH.
-- **Décision :** lancer Maven et Node via les images du projet (`docker compose run` / `exec`).
+- **Décision :** lancer Maven et Node via des images Docker (`docker compose run` / `exec`, ou `docker run` avec l'image officielle).
 - **Conséquences :** mêmes versions qu'en CI et en production ; rien à installer localement.
 
 ## ADR-005 — Structure du dépôt créée au fil des phases
@@ -54,33 +55,33 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 
 ## ADR-008 — Conception de la CI GitHub Actions
 
-- **Date :** 2026-11-19 · **Statut :** acceptée
+- **Date :** 2026-11-19 · **Statut :** acceptée (scan Trivy : remplacé par ADR-022)
 - **Décisions :**
   - Déclenchement sur push vers `main`/`develop` et sur Pull Request : les branches de travail sont testées via leur PR, sans exécution en double.
   - `permissions: contents: read` au niveau du workflow (moindre privilège).
   - Actions tierces épinglées par **SHA de commit** (avec la version en commentaire) : un tag peut être déplacé par un attaquant, un SHA non.
   - `mvnw verify` au lieu de `test` : compile, teste et produit le `.jar`.
   - Version de Node lue depuis `frontend/.nvmrc` : une seule source de vérité.
-  - Scan Trivy (dépendances + secrets) en mode rapport : les vulnérabilités existantes seront traitées en phase M, puis le job deviendra bloquant.
-  - Job `ci-status` unique pour la protection de branche.
-- **Reporté :** analyse de qualité de code (SonarCloud) et couverture de tests, à évaluer en phase M.
+  - Scan Trivy (dépendances + secrets) d'abord en mode rapport ; **devenu bloquant en phase M (ADR-022)**.
+  - Job `ci-status` unique pour la protection de branche ; il agrège `backend`, `frontend`, `security` et `helm` (ajouté en phase L, ADR-021).
+- **Reporté :** analyse de qualité de code (SonarCloud) et couverture de tests ; validation des workflows (`actionlint`) prévue en M4.
 
 ## ADR-009 — Le frontend appelle l'API par un chemin relatif `/api`
 
 - **Date :** 2026-11-19 · **Statut :** acceptée
 - **Contexte :** l'URL de l'API était écrite dans le bundle Angular au moment du build (`http://localhost:8080/api`). Une image construite pour un environnement ne fonctionnait pas dans un autre, ce qui empêche de déployer la même image (tag immuable) partout.
-- **Décision :** l'image utilise `/api`. nginx, dans le même conteneur que le frontend, fait proxy vers le backend dont l'adresse est lue au démarrage (`BACKEND_URL`). En Kubernetes, l'Ingress pourra aussi router `/api` directement vers le backend.
+- **Décision :** l'image utilise `/api`. nginx, dans le même conteneur que le frontend, fait proxy vers le backend dont l'adresse est lue au démarrage (`BACKEND_URL`). En Kubernetes, l'Ingress route `/api` directement vers le backend.
 - **Conséquences :** une seule image pour Compose, Minikube et EKS ; plus de CORS en production (même origine) ; le backend n'a plus besoin d'être exposé publiquement. Le déploiement Netlify d'origine garde son mécanisme `API_URL`.
 
 ## ADR-010 — Images de production durcies
 
-- **Date :** 2026-11-19 · **Statut :** acceptée
+- **Date :** 2026-11-19 · **Statut :** acceptée (complétée par ADR-023 : `apk upgrade`)
 - **Décisions :**
   - Backend : runtime `eclipse-temurin:17-jre-alpine` (JRE seul, sans JDK ni Maven), utilisateur à UID numérique fixe `10001`.
   - Frontend : `nginxinc/nginx-unprivileged` (UID 101, port 8080) au lieu de `nginx` qui démarre en root.
   - `HEALTHCHECK` dans les deux images ; `-XX:MaxRAMPercentage=75` pour que la JVM respecte la limite mémoire du conteneur.
   - nginx écrase `X-Forwarded-For` avec l'IP qu'il voit : un client ne peut plus usurper une IP pour contourner le rate limiting.
-- **Conséquences :** images plus petites, compatibles avec `runAsNonRoot` en Kubernetes (phase I) ; ports internes à 8080 pour les deux services.
+- **Conséquences :** images plus petites, compatibles avec `runAsNonRoot` en Kubernetes ; ports internes à 8080 pour les deux services.
 
 ## ADR-011 — Publication des images sur GHCR
 
@@ -90,8 +91,8 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
   - Registre : GitHub Container Registry (`ghcr.io/<owner>/trackr-backend|frontend`), authentifié par le `GITHUB_TOKEN` du workflow (`packages: write` limité au job de publication) : aucun secret à créer.
   - Déclenchement par `workflow_run` après une CI **réussie** sur un **push** vers `main`/`develop` : le code d'une PR n'est jamais publié.
   - Le tag `sha-<7>` est immuable et c'est lui qu'on déploie ; `develop`, `main` et `latest` sont des tags mobiles de confort ; `X.Y.Z` pour les releases.
-  - Un test de fumée s'exécute sur l'image construite avant tout push : une image qui ne démarre pas n'est jamais publiée.
-- **Limite connue :** un tag `vX.Y.Z` est publié sans attendre la CI. Il doit être posé sur un commit de `main` déjà validé (procédure formalisée en phase G).
+  - Un test de fumée puis un scan Trivy (ADR-023) s'exécutent sur l'image construite avant tout push : une image qui ne démarre pas ou qui est vulnérable n'est jamais publiée.
+- **Limite connue :** un tag `vX.Y.Z` est publié sans attendre la CI. Il doit être posé sur un commit de `main` déjà validé.
 
 ## ADR-012 — `develop` comme branche par défaut du fork
 
@@ -103,25 +104,26 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 ## ADR-013 — Stratégie de déploiement continu local
 
 - **Date :** 2026-11-19 · **Statut :** acceptée
-- **Contexte :** les runners hébergés par GitHub ne peuvent pas joindre la machine locale (Docker Compose aujourd'hui, Minikube ensuite). Deux options : un runner auto-hébergé sur la machine, ou un déploiement déclenché localement.
-- **Décision :** script de déploiement local (`scripts/deploy.sh`) qui *tire* une version déjà publiée. Pas de runner auto-hébergé.
+- **Contexte :** les runners hébergés par GitHub ne peuvent pas joindre la machine locale (Docker Compose, puis Minikube). Deux options : un runner auto-hébergé sur la machine, ou un déploiement déclenché localement.
+- **Décision :** déploiement local qui *tire* une version déjà publiée. Pas de runner auto-hébergé.
 - **Raisons :**
   - Le dépôt est un fork **public** : un runner auto-hébergé pourrait exécuter sur la machine personnelle du code venant d'une PR externe — GitHub déconseille explicitement ce montage.
   - Le modèle « pull » n'ouvre aucun port et ne donne à GitHub aucun accès à la machine.
-  - Seules des versions publiées (donc testées par la CI et le test de fumée) sont déployables.
-- **Conséquences :** *Continuous Delivery* en local (chaque commit sur `develop` produit une version déployable en une commande) ; *Continuous Deployment* complet sur AWS (phase Y), où GitHub Actions peut joindre EKS via OIDC. Le script sera étendu à Minikube (Helm) en phase L.
+  - Seules des versions publiées (donc testées par la CI, le test de fumée et le scan d'image) sont déployables.
+- **Mise en œuvre :** Docker Compose → `scripts/deploy.sh` (health checks, retour arrière automatique) ; Minikube → `helm upgrade --install --set image.tag=sha-<7> --wait --atomic` (ADR-021), qui apporte les mêmes garanties.
+- **Conséquences :** *Continuous Delivery* en local (chaque commit sur `develop` produit une version déployable en une commande) ; *Continuous Deployment* complet sur AWS (phase Y), où GitHub Actions peut joindre EKS via OIDC.
 
 ## ADR-014 — Kustomize (base + overlays) pour les manifests
 
-- **Date :** 2026-11-20 · **Statut :** acceptée
-- **Décision :** `k8s/base` contient les ressources communes ; chaque environnement est un overlay (`k8s/overlays/local`, plus tard `aws`). Kustomize est intégré à `kubectl`.
+- **Date :** 2026-11-20 · **Statut :** acceptée (remplacée par Helm pour les nouveaux déploiements, ADR-021)
+- **Décision :** `k8s/base` contient les ressources communes ; chaque environnement est un overlay (`k8s/overlays/local`). Kustomize est intégré à `kubectl`.
 - **Conséquences :** pas de copie entre environnements ; secrets générés depuis des fichiers locaux ignorés par Git, avec un suffixe de hash qui redémarre les pods quand ils changent.
 
 ## ADR-015 — Sondes Kubernetes du backend
 
 - **Date :** 2026-11-20 · **Statut :** acceptée
-- **Décision :** groupes Actuator `liveness` et `readiness` activés ; seuls ces deux chemins sont publics et exclus du rate limiting. `readiness` inclut la base de données, `liveness` non.
-- **Raison :** si PostgreSQL tombe, les pods backend sont retirés du trafic au lieu d'être redémarrés en boucle (un redémarrage ne réparerait pas la base).
+- **Décision :** groupes Actuator `liveness` et `readiness` activés ; seuls `/actuator/health`, `/actuator/health/liveness` et `/actuator/health/readiness` sont publics et exclus du rate limiting. `readiness` inclut la base de données, `liveness` non. Une `startupProbe` couvre le démarrage lent de la JVM.
+- **Raison :** si PostgreSQL tombe, les pods backend sont retirés du trafic au lieu d'être redémarrés en boucle (un redémarrage ne réparerait pas la base). Vérifié en K3.
 
 ## ADR-016 — PostgreSQL en StatefulSet sur Minikube
 
@@ -131,9 +133,9 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 ## ADR-017 — Migrations de schéma avec Flyway
 
 - **Date :** 2026-11-20 · **Statut :** acceptée
-- **Contexte :** Hibernate (`ddl-auto: update`) modifiait le schéma au démarrage : pas d'historique, pas de relecture, et des conflits si plusieurs pods démarrent sur une base vide (backend limité à 1 réplique).
-- **Décision :** Flyway gère le schéma (`db/migration/V<n>__*.sql`) ; Hibernate passe en `validate`. V1 reproduit exactement le schéma existant (vérifié par comparaison `pg_dump` : 79 lignes de DDL identiques). `baseline-on-migrate` marque les bases existantes comme étant en V1.
-- **Conséquences :** migrations relues en PR et testées par la CI (base vide → V1 → validation Hibernate) ; verrou Flyway lors des démarrages simultanés ; un fichier de migration appliqué ne se modifie jamais.
+- **Contexte :** Hibernate (`ddl-auto: update`) modifiait le schéma au démarrage : pas d'historique, pas de relecture, et des conflits si plusieurs pods démarrent sur une base vide (backend limité alors à 1 réplique).
+- **Décision :** Flyway gère le schéma (`db/migration/V<n>__*.sql`) ; Hibernate passe en `validate`. V1 reproduit exactement le schéma existant (vérifié par comparaison `pg_dump` : 79 lignes de DDL identiques). `baseline-on-migrate` marque les bases existantes comme étant en V1. V2 élargit les descriptions à 1000 caractères.
+- **Conséquences :** migrations relues en PR et testées par la CI (base vide → V1 → V2 → validation Hibernate) ; verrou Flyway lors des démarrages simultanés ; un fichier de migration appliqué ne se modifie jamais.
 
 ## ADR-018 — Autoscaling horizontal du backend (HPA)
 
@@ -142,21 +144,19 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 - **Observation :** au démarrage, la JVM consomme beaucoup de CPU (classes, JIT, Hibernate, Flyway) : le HPA est monté à 4 répliques sans trafic, puis redescendu à 2. Pistes si nécessaire : fenêtre de stabilisation en montée, request CPU ajustée, métriques applicatives (Prometheus, phase P).
 - **Limite :** rate limiting en mémoire par pod (problème connu n°4).
 
-
 ## ADR-019 — RBAC à privilèges minimaux
 
 - **Date :** 2026-11-23 · **Statut :** acceptée
-- **Décision :** deux ServiceAccounts limités au namespace `trackr` : `trackr-viewer` (lecture seule) et `trackr-deployer` (modification des Deployments, sans création ni suppression). Aucun accès aux Secrets.
+- **Décision :** deux ServiceAccounts limités au namespace de l'application : `trackr-viewer` (lecture seule) et `trackr-deployer` (modification des Deployments, sans création ni suppression). Aucun accès aux Secrets. Repris dans le chart Helm (`rbac.roles`).
 - **Vérification :** `kubectl auth can-i --as=system:serviceaccount:trackr:...` et refus réel (`Forbidden`) sur `get secrets`.
 
 ## ADR-020 — NetworkPolicies écrites mais non appliquées sur Minikube
 
 - **Date :** 2026-11-23 · **Statut :** acceptée
 - **Contexte :** le CNI par défaut du cluster Minikube existant n'applique pas les NetworkPolicies. Les tester demanderait un cluster avec Calico (nouveau profil ou recréation du cluster).
-- **Décision :** modèle « tout refuser puis autoriser » (Ingress → frontend/backend, frontend → backend, backend → PostgreSQL), versionné dans `k8s/base`, appliqué sur EKS (phase W). Non démontré localement.
+- **Décision :** modèle « tout refuser puis autoriser » (Ingress → frontend/backend, frontend → backend, backend → PostgreSQL), versionné dans `k8s/base` et dans le chart Helm, appliqué sur EKS (phase W). Non démontré localement.
 - **Preuve de la limite :** un pod de `voting-app` atteint `postgres:5432` malgré la règle (`nc` : open).
-- **À faire :** ajouter le namespace `monitoring` (phase P) ; restreindre le trafic sortant (egress) en phase M.
-
+- **À faire :** autoriser le namespace `monitoring` (phase P) ; restreindre le trafic sortant (egress).
 
 ## ADR-021 — Helm pour déployer Trackr
 
@@ -168,26 +168,28 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
   - L'annotation `checksum/config` redémarre les pods quand la configuration change.
   - Les manifests `k8s/` restent comme trace des phases I–K et ne seront plus enrichis ; le namespace `trackr` (Kustomize) pourra être supprimé pour libérer des ressources.
 
-  
 ## ADR-022 — Scan de sécurité bloquant et exceptions documentées
 
 - **Date :** 2026-11-25 · **Statut :** acceptée
-- **Décision :** le scan Trivy (dépendances HIGH/CRITICAL corrigeables + secrets) fait échouer la CI. Une exception n'est possible que dans `.trivyignore`, avec justification et date d'expiration.
-- **Corrections :** frontend — `npm update` (npm 11) : 61 → 16 vulnérabilités, 0 HIGH/CRITICAL, 101 tests OK ; backend — pgjdbc 42.6.2 → 42.7.12 (CVE-2026-42198, CVE-2026-54291)
-- **Exception :** CVE-2026-22733 (Spring Boot Actuator, endpoints Cloud Foundry) — non exploitable dans Trackr (aucun endpoint sous ce chemin, Actuator limité à `health`) ; expire le 2027-01-31.
+- **Décision :** le scan Trivy du dépôt (dépendances HIGH/CRITICAL corrigeables + secrets) fait échouer la CI. Une exception n'est possible que dans `.trivyignore`, avec justification et date d'expiration.
+- **Corrections :** frontend — `npm update` (npm 11) : 61 → 16 vulnérabilités, 0 HIGH/CRITICAL, 101 tests OK ; backend — pgjdbc → 42.7.12 (CVE-2026-42198, CVE-2026-54291).
+- **Exceptions :** la première (CVE-2026-22733, Actuator Cloud Foundry) a été **retirée** après la montée en Spring Boot 3.5.16, qui la corrige. Exceptions en vigueur : voir ADR-024.
 - **Risques acceptés :** 16 vulnérabilités modérées dans l'outillage de build Angular (CLI), absentes de l'image de production ; correctif = Angular 22.
-- **Dette :** Spring Boot 3.2 hors support ; la 3.5 aussi depuis juin 2026 (dernière OSS : 3.5.16). Migration vers 4.x = chantier applicatif (problème connu n°10).
 
 ## ADR-023 — Scan des images et mises à jour automatiques
 
 - **Date :** 2026-11-25 · **Statut :** acceptée
 - **Décision :** le workflow Publish scanne chaque image avec Trivy (OS + bibliothèques, HIGH/CRITICAL corrigeables) après le test de fumée et avant le push : une image vulnérable n'est jamais publiée. Dependabot propose chaque semaine des PR pour Maven, npm, Docker et GitHub Actions ; les versions majeures des frameworks sont exclues.
-- **Raison :** le scan du code source ne voit pas les paquets du système de l'image (OpenSSL, musl…). Une faille publiée après une correction (cas vécu : pgjdbc 42.7.11 → 42.7.12) impose des mises à jour continues.
+- **Raison :** le scan du code source ne voit pas les paquets du système de l'image (OpenSSL, musl…) ni les dépendances réellement embarquées dans le jar. Une faille publiée après une correction (cas vécu : pgjdbc 42.7.11 → 42.7.12) impose des mises à jour continues.
+- **Images de base :** `apk upgrade --no-cache` dans l'étape runtime des deux Dockerfiles (57 → 0 vulnérabilités Alpine sur le frontend) : les images de base publiées sont souvent en retard sur les correctifs Alpine.
+- **Limite :** avec le cache de build (`type=gha`), la couche `apk upgrade` peut être réutilisée tant que l'image de base ne change pas ; un correctif Alpine publié entre-temps n'est alors pas intégré. Le scan d'image le détecte (Publish échoue) ; il suffit de relancer sans cache. Les PR Dependabot `docker` renouvellent aussi l'image de base.
 
 ## ADR-024 — Montée de version Spring Boot 3.2.5 → 3.5.16
 
 - **Date :** 2026-11-25 · **Statut :** acceptée
 - **Contexte :** le scan bloquant a révélé 9 vulnérabilités (3 critiques) dans Spring Security 6.2.4 et Spring Framework 6.1.6, apportés par Spring Boot 3.2.5 (hors support).
-- **Décision :** Spring Boot 3.5.16 (dernière version OSS de la génération 3.x), qui embarque Spring Framework 6.2.19. Dépendances alignées : `flyway-database-postgresql` (Flyway 10+), springdoc 2.8.14.
-- **Surcharges de versions (scan du jar dans l'image) :** Jackson 2.21.7 (5 CVE HIGH), Tomcat 10.1.59 (5 CRITICAL, 1 HIGH). Le scan du `pom.xml` seul ne les voyait pas : seul le scan de l'artefact final montre les dépendances transitives réellement embarquées.
+- **Décision :** Spring Boot 3.5.16 (dernière version OSS de la génération 3.x), qui embarque Spring Framework 6.2.19 et Flyway 11. Dépendances alignées : `flyway-database-postgresql` (Flyway 10+), springdoc 2.8.14.
+- **Surcharges de versions (scan du jar dans l'image) :** Jackson 2.21.7 (5 CVE HIGH), Tomcat 10.1.59 (5 CRITICAL, 1 HIGH), PostgreSQL JDBC 42.7.12. Le scan du `pom.xml` seul ne les voyait pas : seul le scan de l'artefact final montre les dépendances transitives réellement embarquées.
 - **Exceptions :** CVE-2026-47884 (XsltView) et CVE-2026-47890 (SSE avec fragments de vue), corrigées seulement en Spring Framework 7 ; non exploitables (API REST, ni vue ni SSE). Expirent le 2027-02-28.
+- **Validation :** CI 126 tests ✅ ; Publish (scan d'image) ✅ ; déploiement Helm révision 7 (`sha-24866e1`) : Flyway valide 2 migrations sans avertissement PostgreSQL 16, inscription et connexion fonctionnelles.
+- **Dette :** la génération 3.5 n'est plus maintenue en open source ; la migration vers Spring Boot 4 (Spring Framework 7) est un chantier applicatif hors périmètre DevOps (problème connu n°10). Elle supprimera les deux exceptions.
