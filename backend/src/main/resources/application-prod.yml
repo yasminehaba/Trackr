@@ -1,3 +1,11 @@
+
+# Documentation OpenAPI désactivée en production (problème connu n°9) :
+# elle publierait la carte complète de l'API. Reste active en dev.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 spring:
   jpa:
     show-sql: false
