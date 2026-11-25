@@ -18,7 +18,7 @@
 | J | Déploiement sur Minikube | ✅ Terminé |
 | K | Kubernetes avancé (Flyway, HPA, résilience, RBAC) | ✅ Terminé |
 | L | Helm | ✅ Terminé |
-| M | DevSecOps | 🔄 En cours (M1–M3b ✅, M4 à faire) |
+| M | DevSecOps | ✅ Terminé (options reportées : actionlint, `open-in-view`) |
 | N – O | Terraform, Ansible | ⏳ À faire |
 | P – S | Prometheus, Grafana, logs, tests de charge | ⏳ À faire |
 | T – Z | AWS (dernière étape) | ⏳ À faire |
@@ -244,11 +244,17 @@ Chart `helm/trackr` 0.1.0 · release `trackr` dans le namespace `trackr-helm` ·
 
 ### M4 — Durcissement final ⏳
 
-- Secret scanning et push protection GitHub
-- Swagger (`/v3/api-docs`, `/swagger-ui.html`) désactivé en prod
-- `spring.jpa.open-in-view: false` ; suppression de `hibernate.dialect` explicite
-- Job `actionlint` dans la CI (erreur YAML de `publish.yml` détectée trop tard)
-- Stratégie de gestion des secrets pour AWS
+### M4 — Durcissement final ✅ (PR #18)
+
+| Vérification | Résultat (2026-11-25) |
+|---|---|
+| Swagger désactivé (profil `prod`) | Révision Helm 8 (`sha-f88c77e`) : `/v3/api-docs` et `/swagger-ui.html` → 404 depuis l'intérieur du pod ; 0 avertissement SpringDoc |
+| Non-régression | `/api/health` UP |
+| Secret scanning + push protection | Activés (`security_and_analysis` : enabled) |
+| Protection `develop` et `main` | `CI status` obligatoire, appliquée aussi à l'administrateur, force-push interdit |
+| Preuve | Push direct sur `develop` → `GH006: Protected branch update failed … Required status check "CI status" is expected` |
+
+Reporté (facultatif) : job `actionlint`, `spring.jpa.open-in-view: false`, suppression de `hibernate.dialect` (problème n°15).
 
 ## Problèmes connus
 
@@ -275,4 +281,4 @@ Problème local résolu : le port 8080 était occupé par le listener Oracle (`T
 
 ## Prochaine action recommandée
 
-Phase M4 : désactiver Swagger et `open-in-view` en prod, ajouter `actionlint` à la CI, activer le secret scanning et la push protection, puis clôturer la phase M.
+Phase N : écrire l'infrastructure AWS en Terraform (VPC, EKS, ECR, RDS) et la valider par `terraform plan`, sans créer aucune ressource.

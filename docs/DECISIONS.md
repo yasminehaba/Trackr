@@ -193,3 +193,23 @@ Une décision n'est jamais effacée : si elle change, elle est marquée « rempl
 - **Exceptions :** CVE-2026-47884 (XsltView) et CVE-2026-47890 (SSE avec fragments de vue), corrigées seulement en Spring Framework 7 ; non exploitables (API REST, ni vue ni SSE). Expirent le 2027-02-28.
 - **Validation :** CI 126 tests ✅ ; Publish (scan d'image) ✅ ; déploiement Helm révision 7 (`sha-24866e1`) : Flyway valide 2 migrations sans avertissement PostgreSQL 16, inscription et connexion fonctionnelles.
 - **Dette :** la génération 3.5 n'est plus maintenue en open source ; la migration vers Spring Boot 4 (Spring Framework 7) est un chantier applicatif hors périmètre DevOps (problème connu n°10). Elle supprimera les deux exceptions.
+
+## ADR-025 — Protections du dépôt GitHub
+
+- **Date :** 2026-11-25 · **Statut :** acceptée
+- **Décisions :**
+  - Secret scanning et push protection activés : un token reconnu (GitHub, AWS…) est refusé **avant** d'entrer dans l'historique. Trivy (scanner `secret`) reste un second filet en CI.
+  - `develop` et `main` protégées : fusion uniquement si `CI status` est vert, règle appliquée aussi à l'administrateur, force-push et suppression interdits. Pas de relecture obligatoire (projet mené seul).
+- **Preuve :** push direct refusé (`GH006`, « Required status check "CI status" is expected »).
+- **Conséquences :** toute modification, y compris la documentation, passe par une PR. Un incident comme celui de la phase C (revert accidentel corrigé par `push --force`) devient impossible sur les branches partagées.
+
+## ADR-026 — Gestion des secrets jusqu'à AWS
+
+- **Date :** 2026-11-25 · **Statut :** acceptée
+- **Aujourd'hui :** aucun secret dans Git. En local, `.env` et `k8s/overlays/*/*.env` sont ignorés par Git ; les Secrets Kubernetes sont créés hors du chart Helm et référencés par nom. La CI n'utilise que le `GITHUB_TOKEN` éphémère.
+- **Sur AWS (phases T–Z) :**
+  - GitHub Actions → AWS par **OIDC** (rôle IAM assumé, jetons de quelques minutes) : aucune clé d'accès AWS stockée dans GitHub.
+  - Mot de passe RDS généré et géré par **AWS Secrets Manager**, jamais écrit dans Terraform ni dans les values Helm.
+  - Secrets injectés dans EKS par **External Secrets Operator** (rôle IAM du pod via IRSA), qui crée les Secrets Kubernetes attendus par le chart : le chart ne change pas.
+  - État Terraform chiffré (backend S3), car il peut contenir des valeurs sensibles.
+- **Règle :** aucune clé AWS n'est collée dans une conversation, un fichier versionné ou un log.
