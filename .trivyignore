@@ -1,0 +1,12 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Exceptions au scan Trivy. Chaque entrée DOIT avoir une justification et une
+# date d'expiration (exp:) : passée cette date, le scan échoue de nouveau et
+# l'exception doit être réévaluée.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# CVE-2026-22733 — Spring Boot Actuator : contournement d'authentification
+# pour les endpoints déclarés sous le chemin Actuator Cloud Foundry.
+# Non exploitable dans Trackr : aucun endpoint sous ce chemin, Actuator n'expose
+# que « health », application non déployée sur Cloud Foundry.
+# Correctif réel : Spring Boot >= 3.5.12 (problème connu n°10). Voir ADR-022.
+CVE-2026-22733 exp:2027-01-31

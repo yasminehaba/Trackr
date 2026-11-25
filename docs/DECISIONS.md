@@ -167,3 +167,13 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
   - Helm devient la méthode de déploiement de référence (Minikube, puis EKS et la CD en phase Y). `helm upgrade --install --wait --atomic` : idempotent, avec retour arrière automatique.
   - L'annotation `checksum/config` redémarre les pods quand la configuration change.
   - Les manifests `k8s/` restent comme trace des phases I–K et ne seront plus enrichis ; le namespace `trackr` (Kustomize) pourra être supprimé pour libérer des ressources.
+
+  
+## ADR-022 — Scan de sécurité bloquant et exceptions documentées
+
+- **Date :** 2026-11-25 · **Statut :** acceptée
+- **Décision :** le scan Trivy (dépendances HIGH/CRITICAL corrigeables + secrets) fait échouer la CI. Une exception n'est possible que dans `.trivyignore`, avec justification et date d'expiration.
+- **Corrections :** frontend — `npm update` (npm 11) : 61 → 16 vulnérabilités, 0 HIGH/CRITICAL, 101 tests OK ; backend — pgjdbc 42.6.2 → 42.7.11 (CVE-2026-42198).
+- **Exception :** CVE-2026-22733 (Spring Boot Actuator, endpoints Cloud Foundry) — non exploitable dans Trackr (aucun endpoint sous ce chemin, Actuator limité à `health`) ; expire le 2027-01-31.
+- **Risques acceptés :** 16 vulnérabilités modérées dans l'outillage de build Angular (CLI), absentes de l'image de production ; correctif = Angular 22.
+- **Dette :** Spring Boot 3.2 hors support ; la 3.5 aussi depuis juin 2026 (dernière OSS : 3.5.16). Migration vers 4.x = chantier applicatif (problème connu n°10).
