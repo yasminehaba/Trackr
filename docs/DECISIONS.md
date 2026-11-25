@@ -177,3 +177,9 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 - **Exception :** CVE-2026-22733 (Spring Boot Actuator, endpoints Cloud Foundry) — non exploitable dans Trackr (aucun endpoint sous ce chemin, Actuator limité à `health`) ; expire le 2027-01-31.
 - **Risques acceptés :** 16 vulnérabilités modérées dans l'outillage de build Angular (CLI), absentes de l'image de production ; correctif = Angular 22.
 - **Dette :** Spring Boot 3.2 hors support ; la 3.5 aussi depuis juin 2026 (dernière OSS : 3.5.16). Migration vers 4.x = chantier applicatif (problème connu n°10).
+
+## ADR-023 — Scan des images et mises à jour automatiques
+
+- **Date :** 2026-11-25 · **Statut :** acceptée
+- **Décision :** le workflow Publish scanne chaque image avec Trivy (OS + bibliothèques, HIGH/CRITICAL corrigeables) après le test de fumée et avant le push : une image vulnérable n'est jamais publiée. Dependabot propose chaque semaine des PR pour Maven, npm, Docker et GitHub Actions ; les versions majeures des frameworks sont exclues.
+- **Raison :** le scan du code source ne voit pas les paquets du système de l'image (OpenSSL, musl…). Une faille publiée après une correction (cas vécu : pgjdbc 42.7.11 → 42.7.12) impose des mises à jour continues.

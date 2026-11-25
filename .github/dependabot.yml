@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Dependabot : propose chaque semaine des Pull Requests de mise à jour.
+# Chaque PR passe par la CI (tests + scan Trivy bloquant) avant fusion.
+# Les montées de version MAJEURES des frameworks sont ignorées : ce sont des
+# migrations applicatives à planifier (Angular 22, Spring Boot 4 — ADR-022).
+# ─────────────────────────────────────────────────────────────────────────────
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /backend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    labels: [dependencies, backend]
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    labels: [dependencies, frontend]
+    groups:
+      # Les paquets Angular doivent évoluer ensemble : une seule PR pour tous.
+      angular:
+        patterns: ["@angular/*", "@angular-devkit/*", "@schematics/*"]
+    ignore:
+      - dependency-name: "@angular/*"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: docker
+    directories: [/backend, /frontend]
+    schedule: { interval: weekly, day: monday }
+    labels: [dependencies, docker]
+
+  # Met aussi à jour les SHA épinglés des actions (et leur commentaire de version).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    labels: [dependencies, ci]
