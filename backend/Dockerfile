@@ -14,9 +14,10 @@ RUN mvn -B -ntp package -DskipTests \
 # ── Stage 2 : runtime (JRE seulement, pas de JDK ni de Maven) ───────────────
 FROM eclipse-temurin:17-jre-alpine
 
-# Utilisateur dédié avec un UID numérique fixe : Kubernetes peut alors
-# vérifier runAsNonRoot sans connaître les noms d'utilisateurs de l'image.
-RUN addgroup -S -g 10001 trackr && adduser -S -u 10001 -G trackr trackr
+# Mise à jour des paquets Alpine (correctifs publiés après l'image de base),
+# puis création de l'utilisateur non-root.
+RUN apk upgrade --no-cache \
+    && addgroup -S -g 10001 trackr && adduser -S -u 10001 -G trackr trackr
 WORKDIR /app
 COPY --from=build --chown=10001:10001 /app/app.jar app.jar
 USER 10001
