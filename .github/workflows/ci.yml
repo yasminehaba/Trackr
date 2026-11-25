@@ -214,3 +214,6 @@ jobs:
         run: |
           echo "backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} helm=${{ needs.helm.result }} security=${{ needs.security.result }}"
           if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.helm.result }}" != "success" ]; then
+            echo "::error::Au moins un job obligatoire a échoué."
+            exit 1
+          fi
