@@ -27,9 +27,11 @@ FROM nginxinc/nginx-unprivileged:1.29-alpine
 # Adresse du backend vue depuis le conteneur nginx (surchargée par Compose ou Kubernetes).
 ENV BACKEND_URL=http://backend:8080
 
-# On supprime la page « Welcome to nginx! » et la config par défaut de l'image.
+# Mise à jour des paquets Alpine (correctifs de sécurité publiés après la
+# construction de l'image de base), puis suppression de la page par défaut.
 USER root
-RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
+RUN apk upgrade --no-cache \
+    && rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
 USER 101
 
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
