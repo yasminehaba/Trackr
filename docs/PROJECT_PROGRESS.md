@@ -14,7 +14,7 @@
 | F | Registre de conteneurs (GHCR) | ✅ Terminé |
 | G | Déploiement continu | 🔄 En cours |
 | H | Préparation de Minikube | ⏳ À faire |
-| — | Préparation K8s (Flyway, sondes, métriques) | ⏳ À faire |
+| — | Préparation K8s (Flyway, sondes, métriques) | ✅ Terminé|
 | I – L | Manifests, déploiement Minikube, K8s avancé, Helm | ⏳ À faire |
 | M – O | DevSecOps, Terraform, Ansible | ⏳ À faire |
 | P – S | Prometheus, Grafana, logs, tests de charge | ⏳ À faire |
@@ -119,6 +119,19 @@
 | Base existante (Minikube) | `Successfully baselined schema with version: 1` (type BASELINE) |
 | Données | 1 utilisateur, 2 projets, 2 tâches avant et après |
 | V2 (descriptions 1000 caractères) | Bug HTTP 500 reproduit, puis corrigé par migration |
+
+## Phase L — Helm ✅
+
+Chart `helm/trackr` 0.1.0 · release `trackr` dans le namespace `trackr-helm` · accès `http://trackr-helm.localhost:8088`
+
+| Test | Résultat (2026-11-25) |
+|---|---|
+| `helm lint` / `helm template` | 0 échec · 21 ressources · rendu refusé sans `image.tag` |
+| Installation (`--wait`) | Révision 1 : tous les pods 1/1, Ingress, HPA, 4 NetworkPolicies |
+| Cohabitation | `trackr.local` (Kustomize) et `trackr-helm.localhost` (Helm) servis par le même contrôleur Ingress |
+| Upgrade de configuration | `jwtAccessExpiration` → ConfigMap modifiée, pods backend recréés automatiquement (checksum) ; diff des manifestes : 2 lignes |
+| Rollback | Révision 4 « Rollback to 2 » ; ReplicaSet de la révision 2 réutilisé |
+| Upgrade raté + `--atomic` | Révision 5 `failed` → révision 6 « Rollback to 4 » automatique ; API toujours UP |
 ## Problèmes connus
 
 | # | Problème | Gravité | Phase prévue |

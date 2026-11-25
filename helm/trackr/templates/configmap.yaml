@@ -1,0 +1,15 @@
+{{- /* Configuration non sensible, injectée en variables d'environnement. */ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "trackr.fullname" . }}-config
+  labels:
+    {{- include "trackr.commonLabels" . | nindent 4 }}
+    app.kubernetes.io/component: config
+data:
+  POSTGRES_DB: {{ .Values.postgres.database | quote }}
+  SPRING_PROFILES_ACTIVE: {{ .Values.config.springProfile | quote }}
+  SPRING_DATASOURCE_URL: {{ printf "jdbc:postgresql://%s:5432/%s" (include "trackr.componentName" (dict "root" . "component" "postgres")) .Values.postgres.database | quote }}
+  CORS_ALLOWED_ORIGINS: {{ include "trackr.corsOrigins" . | quote }}
+  JWT_ACCESS_EXPIRATION: {{ .Values.config.jwtAccessExpiration | quote }}
+  JWT_REFRESH_EXPIRATION: {{ .Values.config.jwtRefreshExpiration | quote }}

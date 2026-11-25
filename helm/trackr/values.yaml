@@ -1,0 +1,94 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Valeurs par défaut du chart Trackr.
+# Chaque environnement les surcharge avec son propre fichier (values-local.yaml)
+# ou avec --set au moment du « helm install / upgrade ».
+# ─────────────────────────────────────────────────────────────────────────────
+
+image:
+  # Images : <registry>/trackr-backend:<tag> et <registry>/trackr-frontend:<tag>
+  registry: ghcr.io/yasminehaba
+  # Tag immuable publié par le workflow Publish (sha-xxxxxxx). OBLIGATOIRE.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# URL publique de l'application (origine autorisée par CORS).
+publicUrl: http://trackr.local
+# Origines supplémentaires (ex. accès par port-forward : http://trackr.local:8088).
+extraCorsOrigins: []
+
+# Secrets créés EN DEHORS du chart : ils ne sont jamais dans Git ni dans les values.
+secrets:
+  database: trackr-db-credentials     # clés : POSTGRES_USER, POSTGRES_PASSWORD
+  backend: trackr-backend-secrets     # clé  : JWT_SECRET
+
+config:
+  springProfile: prod
+  jwtAccessExpiration: "900000"       # 15 min
+  jwtRefreshExpiration: "604800000"   # 7 jours
+
+backend:
+  # Utilisé seulement si l'autoscaling est désactivé.
+  replicas: 2
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: "1",  memory: 768Mi }
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 4
+    targetCPUUtilization: 70
+
+frontend:
+  replicas: 2
+  resources:
+    requests: { cpu: 50m,  memory: 64Mi }
+    limits:   { cpu: 200m, memory: 128Mi }
+
+postgres:
+  image: postgres:16-alpine
+  database: trackr
+  storage: 2Gi
+  # Vide = StorageClass par défaut du cluster (« standard » sur Minikube).
+  storageClass: ""
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+
+ingress:
+  enabled: true
+  className: nginx
+  host: trackr.local
+
+rbac:
+  create: true
+  # Un ServiceAccount + Role + RoleBinding par entrée : <release>-<nom>.
+  # Aucune règle n'accorde l'accès aux Secrets (ADR-019).
+  roles:
+    viewer:
+      - apiGroups: [""]
+        resources: [pods, pods/log, services, endpoints, configmaps, persistentvolumeclaims, events]
+        verbs: [get, list, watch]
+      - apiGroups: [apps]
+        resources: [deployments, replicasets, statefulsets]
+        verbs: [get, list, watch]
+      - apiGroups: [autoscaling]
+        resources: [horizontalpodautoscalers]
+        verbs: [get, list, watch]
+      - apiGroups: [networking.k8s.io]
+        resources: [ingresses, networkpolicies]
+        verbs: [get, list, watch]
+    deployer:
+      - apiGroups: [apps]
+        resources: [deployments]
+        verbs: [get, list, watch, patch, update]   # ni create ni delete
+      - apiGroups: [apps]
+        resources: [replicasets]
+        verbs: [get, list, watch]
+      - apiGroups: [""]
+        resources: [pods, pods/log, events]
+        verbs: [get, list, watch]
+
+networkPolicies:
+  enabled: true
+  # Namespace du contrôleur Ingress autorisé à joindre frontend et backend.
+  ingressControllerNamespace: ingress-nginx

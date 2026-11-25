@@ -1,0 +1,41 @@
+{{- if .Values.rbac.create }}
+{{- /* RBAC à privilèges minimaux (ADR-019). Les règles sont dans values.yaml (rbac.roles). */}}
+{{- $fullname := include "trackr.fullname" . }}
+{{- range $role, $rules := .Values.rbac.roles }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $fullname }}-{{ $role }}
+  labels:
+    {{- include "trackr.commonLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: rbac
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $fullname }}-{{ $role }}
+  labels:
+    {{- include "trackr.commonLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: rbac
+rules:
+  {{- toYaml $rules | nindent 2 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $fullname }}-{{ $role }}
+  labels:
+    {{- include "trackr.commonLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: rbac
+subjects:
+  - kind: ServiceAccount
+    name: {{ $fullname }}-{{ $role }}
+    namespace: {{ $.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $fullname }}-{{ $role }}
+{{- end }}
+{{- end }}

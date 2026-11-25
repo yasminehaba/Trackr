@@ -156,3 +156,14 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 - **Décision :** modèle « tout refuser puis autoriser » (Ingress → frontend/backend, frontend → backend, backend → PostgreSQL), versionné dans `k8s/base`, appliqué sur EKS (phase W). Non démontré localement.
 - **Preuve de la limite :** un pod de `voting-app` atteint `postgres:5432` malgré la règle (`nc` : open).
 - **À faire :** ajouter le namespace `monitoring` (phase P) ; restreindre le trafic sortant (egress) en phase M.
+
+
+## ADR-021 — Helm pour déployer Trackr
+
+- **Date :** 2026-11-25 · **Statut :** acceptée
+- **Contexte :** les manifests Kustomize (phases I–K) fonctionnent, mais n'ont ni historique de déploiement ni retour arrière global, et chaque paramètre demande un patch.
+- **Décision :** chart `helm/trackr` (21 ressources) : images, configuration, autoscaling, RBAC et NetworkPolicies paramétrés par `values.yaml` ; un fichier de values par environnement. Les Secrets restent créés hors du chart (référencés par nom). Le chart est vérifié en CI (`helm lint`, `helm template`, garde-fou `image.tag`).
+- **Conséquences :**
+  - Helm devient la méthode de déploiement de référence (Minikube, puis EKS et la CD en phase Y). `helm upgrade --install --wait --atomic` : idempotent, avec retour arrière automatique.
+  - L'annotation `checksum/config` redémarre les pods quand la configuration change.
+  - Les manifests `k8s/` restent comme trace des phases I–K et ne seront plus enrichis ; le namespace `trackr` (Kustomize) pourra être supprimé pour libérer des ressources.

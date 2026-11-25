@@ -1,0 +1,8 @@
+apiVersion: v2
+name: trackr
+description: Trackr — gestion de projets et Kanban (Angular, Spring Boot, PostgreSQL)
+type: application
+# Version du CHART (son packaging) : à incrémenter à chaque modification des templates.
+version: 0.1.0
+# Version de l'APPLICATION déployée par défaut (informatif ; le tag réel vient des values).
+appVersion: "develop"
