@@ -139,7 +139,13 @@
 | 14 | Descriptions > 255 caractères → HTTP 500 (validation API à 1000) | 🟠 | Résolu (migration V2) |
 
 Problème local résolu : le port 8080 était occupé par le listener Oracle (`TNSLSNR`) sur la machine de développement ; Oracle a été arrêté.
-
+### K4 — RBAC et NetworkPolicies ✅
+| Test | Résultat (2026-11-23) |
+|---|---|
+| RBAC viewer | list pods/deployments/logs : yes · secrets, delete, patch : no · autre namespace : no |
+| RBAC deployer | patch deployments : yes · create/delete deployments, secrets : no |
+| Refus réel | `get secrets --as=trackr-viewer` → Forbidden |
+| NetworkPolicies | 4 politiques acceptées par l'API ; non appliquées par le CNI de Minikube (test `nc` depuis voting-app : open) — voir ADR-020 |
 ## Prochaine action recommandée
 
 Valider `scripts/deploy.sh` sur la machine locale (déploiement, échec simulé, retour arrière), puis passer à la phase H (Minikube).

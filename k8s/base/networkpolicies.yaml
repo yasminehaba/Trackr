@@ -1,0 +1,90 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# NetworkPolicies — « tout refuser, puis autoriser » pour le trafic entrant.
+#
+# ⚠️ Appliquées uniquement si le plugin réseau (CNI) les prend en charge :
+#    Calico, Cilium, ou le VPC CNI d'EKS avec le support NetworkPolicy activé.
+#    Le CNI par défaut de Minikube les ACCEPTE mais ne les APPLIQUE PAS (ADR-020).
+# Les sondes du kubelet (depuis le node) ne sont pas concernées.
+# Le trafic sortant (egress) n'est pas restreint pour l'instant.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 1. Par défaut : aucun trafic entrant vers les pods du namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  labels:
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: trackr
+spec:
+  podSelector: {}            # tous les pods du namespace
+  policyTypes: ["Ingress"]
+---
+# 2. Frontend : uniquement depuis le contrôleur Ingress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-allow-ingress-controller
+  labels:
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: trackr
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: trackr-frontend
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+# 3. Backend : depuis le contrôleur Ingress (/api) et depuis le frontend (proxy).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-allow-ingress-and-frontend
+  labels:
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: trackr
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: trackr-backend
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: trackr-frontend
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+# 4. PostgreSQL : uniquement depuis le backend.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-allow-backend
+  labels:
+    app.kubernetes.io/component: network-policy
+    app.kubernetes.io/part-of: trackr
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: trackr-backend
+      ports:
+        - port: 5432
+          protocol: TCP

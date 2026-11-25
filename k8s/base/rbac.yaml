@@ -1,0 +1,95 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# RBAC — deux identités à privilèges minimaux, limitées au namespace trackr.
+# Aucune n'a accès aux Secrets (un Secret n'est qu'encodé en base64 :
+# pouvoir le lire, c'est connaître le mot de passe).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Lecture seule : support, supervision ────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trackr-viewer
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: trackr
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: trackr-viewer
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: trackr
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "configmaps",
+                "persistentvolumeclaims", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: trackr-viewer
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: trackr
+subjects:
+  - kind: ServiceAccount
+    name: trackr-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: trackr-viewer
+---
+# ── Déploiement : pipeline CD (changer l'image, suivre le rollout) ──────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trackr-deployer
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: trackr
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: trackr-deployer
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: trackr
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch", "update"]   # pas de create/delete
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: trackr-deployer
+  labels:
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/part-of: trackr
+subjects:
+  - kind: ServiceAccount
+    name: trackr-deployer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: trackr-deployer
