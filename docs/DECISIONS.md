@@ -183,3 +183,12 @@ pour pouvoir la justifier plus tard (soutenance, entretien, nouveau membre de l'
 - **Date :** 2026-11-25 · **Statut :** acceptée
 - **Décision :** le workflow Publish scanne chaque image avec Trivy (OS + bibliothèques, HIGH/CRITICAL corrigeables) après le test de fumée et avant le push : une image vulnérable n'est jamais publiée. Dependabot propose chaque semaine des PR pour Maven, npm, Docker et GitHub Actions ; les versions majeures des frameworks sont exclues.
 - **Raison :** le scan du code source ne voit pas les paquets du système de l'image (OpenSSL, musl…). Une faille publiée après une correction (cas vécu : pgjdbc 42.7.11 → 42.7.12) impose des mises à jour continues.
+
+## ADR-024 — Montée de version Spring Boot 3.2.5 → 3.5.16
+
+- **Date :** 2026-11-25 · **Statut :** acceptée
+- **Contexte :** le scan bloquant a révélé 9 vulnérabilités (3 critiques) dans Spring Security 6.2.4 et Spring Framework 6.1.6, apportés par Spring Boot 3.2.5 (hors support).
+- **Décision :** Spring Boot 3.5.16 (dernière version OSS de la génération 3.x), qui embarque Spring Framework 6.2.19. Dépendances alignées : `flyway-database-postgresql` (Flyway 10+), springdoc 2.8.14.
+- **Exception unique :** CVE-2026-47884 (XsltView), corrigée seulement en Spring Framework 7 ; non exploitable (API REST, aucune vue XSLT). Expire le 2027-02-28.
+- **Effets :** CVE-2026-22733 corrigée (exception retirée) ; avertissement Flyway/PostgreSQL 16 résolu (problème n°13).
+- **Dette restante :** la génération 3.5 n'a plus de support OSS depuis juin 2026 ; la migration vers Spring Boot 4.x reste à planifier.

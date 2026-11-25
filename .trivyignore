@@ -4,9 +4,11 @@
 # l'exception doit être réévaluée.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# CVE-2026-22733 — Spring Boot Actuator : contournement d'authentification
-# pour les endpoints déclarés sous le chemin Actuator Cloud Foundry.
-# Non exploitable dans Trackr : aucun endpoint sous ce chemin, Actuator n'expose
-# que « health », application non déployée sur Cloud Foundry.
-# Correctif réel : Spring Boot >= 3.5.12 (problème connu n°10). Voir ADR-022.
-CVE-2026-22733 exp:2027-01-31
+# CVE-2026-47884 — Spring Framework (spring-webmvc) : SSRF / exécution de code
+# via XsltView, si une application rend des vues XSLT avec un mapping « /** »
+# et un nom de vue implicite.
+# Non exploitable dans Trackr : API REST pure, aucune vue rendue côté serveur,
+# aucune utilisation de XsltView ni de XSLT.
+# Correctif uniquement en Spring Framework 7.0.9 (Spring Boot 4) : aucune
+# version 3.x corrigée. Voir ADR-024.
+CVE-2026-47884 exp:2027-02-28
