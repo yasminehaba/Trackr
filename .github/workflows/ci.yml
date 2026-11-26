@@ -4,8 +4,7 @@
 # Déclencheurs : push sur main/develop, Pull Request vers main/develop,
 #                lancement manuel (onglet Actions → Run workflow).
 # Jobs :        backend (tests + build) · frontend (tests + build)
-#               security (scan Trivy) · helm (lint + rendu)
-#               terraform (fmt, validate, tflint, scan IaC) · ci-status (résultat global)
+#               security (scan Trivy) · ci-status (résultat global)
 # ─────────────────────────────────────────────────────────────────────────────
 name: CI
 
@@ -205,19 +204,28 @@ jobs:
           if helm template trackr helm/trackr -f helm/trackr/values-local.yaml >/dev/null 2>&1; then
             echo "::error::Le chart accepte un rendu sans image.tag"; exit 1
           fi
+
+  # ── Terraform : infrastructure AWS validée hors ligne (aucun accès AWS) ────
   terraform:
     name: Terraform — fmt, validate, lint & scan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
-      TF_VERSION: "1.17.2"        # résultat de : terraform version
-      TFLINT_VERSION: "v0.66.0"   # résultat de : gh api .../tflint/releases/latest
+      TF_VERSION: "1.17.2"
+      TFLINT_VERSION: "v0.66.0"
       TF_DIR: terraform/envs/dev
+
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: terraform fmt
         run: docker run --rm -v "$PWD:/w" -w /w "hashicorp/terraform:$TF_VERSION" fmt -check -recursive -diff terraform
 
+      # -backend=false : aucun accès au bucket S3 ; -lockfile=readonly : providers
+      # strictement identiques à ceux de .terraform.lock.hcl
       - name: terraform init (sans backend) et validate
         run: |
           docker run --rm -v "$PWD:/w" -w "/w/$TF_DIR" "hashicorp/terraform:$TF_VERSION" init -backend=false -input=false -lockfile=readonly
