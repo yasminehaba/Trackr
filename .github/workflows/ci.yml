@@ -4,7 +4,8 @@
 # Déclencheurs : push sur main/develop, Pull Request vers main/develop,
 #                lancement manuel (onglet Actions → Run workflow).
 # Jobs :        backend (tests + build) · frontend (tests + build)
-#               security (scan Trivy) · ci-status (résultat global)
+#               security (scan Trivy) · helm (lint + rendu)
+#               terraform (fmt, validate, tflint, scan IaC) · ci-status (résultat global)
 # ─────────────────────────────────────────────────────────────────────────────
 name: CI
 
@@ -204,16 +205,44 @@ jobs:
           if helm template trackr helm/trackr -f helm/trackr/values-local.yaml >/dev/null 2>&1; then
             echo "::error::Le chart accepte un rendu sans image.tag"; exit 1
           fi
-  # ── Résultat global : un seul « check » à exiger dans la protection de branche
+  terraform:
+    name: Terraform — fmt, validate, lint & scan
+    runs-on: ubuntu-latest
+    env:
+      TF_VERSION: "1.17.2"        # résultat de : terraform version
+      TFLINT_VERSION: "v0.66.0"   # résultat de : gh api .../tflint/releases/latest
+      TF_DIR: terraform/envs/dev
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: terraform fmt
+        run: docker run --rm -v "$PWD:/w" -w /w "hashicorp/terraform:$TF_VERSION" fmt -check -recursive -diff terraform
+
+      - name: terraform init (sans backend) et validate
+        run: |
+          docker run --rm -v "$PWD:/w" -w "/w/$TF_DIR" "hashicorp/terraform:$TF_VERSION" init -backend=false -input=false -lockfile=readonly
+          docker run --rm -v "$PWD:/w" -w "/w/$TF_DIR" "hashicorp/terraform:$TF_VERSION" validate
+
+      - name: tflint
+        run: docker run --rm -v "$PWD/terraform:/data" -w /data/envs/dev "ghcr.io/terraform-linters/tflint:$TFLINT_VERSION" --config=/data/.tflint.hcl
+
+      - name: Scan IaC with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: terraform/envs/dev
+          severity: MEDIUM,HIGH,CRITICAL
+          exit-code: '1'
   ci-status:
     name: CI status
     if: always()
-    needs: [backend, frontend, security, helm]
+    needs: [backend, frontend, security, helm, terraform]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
         run: |
-          echo "backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} helm=${{ needs.helm.result }} security=${{ needs.security.result }}"
-          if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.helm.result }}" != "success" ] || [ "${{ needs.security.result }}" != "success" ]; then            echo "::error::Au moins un job obligatoire a échoué."
+          echo "backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} helm=${{ needs.helm.result }} security=${{ needs.security.result }} terraform=${{ needs.terraform.result }}"
+          if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.helm.result }}" != "success" ] || [ "${{ needs.security.result }}" != "success" ] || [ "${{ needs.terraform.result }}" != "success" ]; then
+            echo "::error::Au moins un job obligatoire a échoué."
             exit 1
           fi
