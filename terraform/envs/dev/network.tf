@@ -29,6 +29,14 @@ module "vpc" {
   enable_dns_support   = true
 
   # Indiquent au contrôleur de Load Balancer AWS où placer les équilibreurs
+  # Journal du trafic réseau (accepté et rejeté) : indispensable pour enquêter
+  # après un incident. Conservation courte pour limiter le coût CloudWatch.
+  enable_flow_log                                 = true
+  create_flow_log_cloudwatch_log_group            = true
+  create_flow_log_cloudwatch_iam_role             = true
+  flow_log_traffic_type                           = "ALL"
+  flow_log_max_aggregation_interval               = 60
+  flow_log_cloudwatch_log_group_retention_in_days = 7
   public_subnet_tags = {
     "kubernetes.io/role/elb" = 1
   }
