@@ -12,8 +12,7 @@ RUN mvn -B -ntp package -DskipTests \
     && mv target/*.jar app.jar
 
 # ── Stage 2 : runtime (JRE seulement, pas de JDK ni de Maven) ───────────────
-FROM eclipse-temurin:17-jre-alpine
-
+FROM eclipse-temurin:17-jre-alpine AS runtime
 # Mise à jour des paquets Alpine (correctifs publiés après l'image de base),
 # puis création de l'utilisateur non-root.
 RUN apk upgrade --no-cache \

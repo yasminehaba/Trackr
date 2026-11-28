@@ -22,8 +22,7 @@ RUN npx ng build --configuration production --output-mode static --no-ssr \
 
 # ── Stage 2 : nginx non-root ────────────────────────────────────────────────
 # Image officielle « unprivileged » : nginx tourne sous l'UID 101, écoute sur 8080.
-FROM nginxinc/nginx-unprivileged:1.29-alpine
-
+FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 # Adresse du backend vue depuis le conteneur nginx (surchargée par Compose ou Kubernetes).
 ENV BACKEND_URL=http://backend:8080
 

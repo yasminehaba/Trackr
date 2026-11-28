@@ -296,7 +296,7 @@ Code dans `terraform/envs/dev` (région eu-west-3) · **aucune ressource AWS cr�
 | 14 | Descriptions > 255 caractères → HTTP 500 (validation API à 1000) | 🟠 | ✅ Corrigé (migration V2, K1) |
 | 15 | Avertissements au démarrage : `open-in-view` actif, `hibernate.dialect` superflu | 🟡 | M4 |
 | 16 | NetworkPolicies non appliquées par le CNI de Minikube | 🟡 | Documenté (ADR-020) ; appliquées sur EKS (phase W) |
-| 17 | GitHub Actions désactivé sur le dépôt depuis le 2026-11-26 (HTTP 422 « Actions has been disabled ») : plus aucune PR fusionnable (protection de branche) | 🔴 | Ouvert — en cours auprès de GitHub |
+| 17 | GitHub Actions désactivé sur le dépôt depuis le 2026-11-26 (HTTP 422 « Actions has been disabled ») : plus aucune PR fusionnable (protection de branche) | ✅ | Rétabli le 2026-11-28 |
 
 Problème local résolu : le port 8080 était occupé par le listener Oracle (`TNSLSNR`) sur la machine de développement ; Oracle a été arrêté.
 

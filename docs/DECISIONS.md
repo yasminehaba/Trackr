@@ -182,7 +182,7 @@ Une décision n'est jamais effacée : si elle change, elle est marquée « rempl
 - **Décision :** le workflow Publish scanne chaque image avec Trivy (OS + bibliothèques, HIGH/CRITICAL corrigeables) après le test de fumée et avant le push : une image vulnérable n'est jamais publiée. Dependabot propose chaque semaine des PR pour Maven, npm, Docker et GitHub Actions ; les versions majeures des frameworks sont exclues.
 - **Raison :** le scan du code source ne voit pas les paquets du système de l'image (OpenSSL, musl…) ni les dépendances réellement embarquées dans le jar. Une faille publiée après une correction (cas vécu : pgjdbc 42.7.11 → 42.7.12) impose des mises à jour continues.
 - **Images de base :** `apk upgrade --no-cache` dans l'étape runtime des deux Dockerfiles (57 → 0 vulnérabilités Alpine sur le frontend) : les images de base publiées sont souvent en retard sur les correctifs Alpine.
-- **Limite :** avec le cache de build (`type=gha`), la couche `apk upgrade` peut être réutilisée tant que l'image de base ne change pas ; un correctif Alpine publié entre-temps n'est alors pas intégré. Le scan d'image le détecte (Publish échoue) ; il suffit de relancer sans cache. Les PR Dependabot `docker` renouvellent aussi l'image de base.
+- **Cache de build :** l'étape finale (`AS runtime`) n'est jamais mise en cache (`no-cache-filters: runtime`, `pull: true`) : `apk upgrade` intègre toujours les derniers correctifs Alpine, et le cache reste actif pour npm et Maven. Constaté le 2026-11-28 : une faille corrigée après le 25/11 restait dans la couche en cache ; le scan d'image a bloqué la publication, et une reconstruction sans cache donnait 0 faille.
 
 ## ADR-024 — Montée de version Spring Boot 3.2.5 → 3.5.16
 
