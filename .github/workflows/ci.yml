@@ -204,16 +204,56 @@ jobs:
           if helm template trackr helm/trackr -f helm/trackr/values-local.yaml >/dev/null 2>&1; then
             echo "::error::Le chart accepte un rendu sans image.tag"; exit 1
           fi
-  # ── Résultat global : un seul « check » à exiger dans la protection de branche
+
+  # ── Terraform : infrastructure AWS validée hors ligne (aucun accès AWS) ────
+  terraform:
+    name: Terraform — fmt, validate, lint & scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TF_VERSION: "1.17.2"
+      TFLINT_VERSION: "v0.66.0"
+      TF_DIR: terraform/envs/dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: terraform fmt
+        run: docker run --rm -v "$PWD:/w" -w /w "hashicorp/terraform:$TF_VERSION" fmt -check -recursive -diff terraform
+
+      # -backend=false : aucun accès au bucket S3 ; -lockfile=readonly : providers
+      # strictement identiques à ceux de .terraform.lock.hcl
+      - name: terraform init (sans backend) et validate
+        run: |
+          docker run --rm -v "$PWD:/w" -w "/w/$TF_DIR" "hashicorp/terraform:$TF_VERSION" init -backend=false -input=false -lockfile=readonly
+          docker run --rm -v "$PWD:/w" -w "/w/$TF_DIR" "hashicorp/terraform:$TF_VERSION" validate
+
+      - name: tflint
+        run: docker run --rm -v "$PWD/terraform:/data" -w /data/envs/dev "ghcr.io/terraform-linters/tflint:$TFLINT_VERSION" --config=/data/.tflint.hcl
+      - name: Scan IaC with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          # Terraform seulement : ignore les manifests d'exemple des modules
+          TRIVY_MISCONFIG_SCANNERS: terraform
+        with:
+          scan-type: config
+          scan-ref: terraform/envs/dev
+          severity: MEDIUM,HIGH,CRITICAL
+          trivyignores: terraform/.trivyignore
+          exit-code: '1'
   ci-status:
     name: CI status
     if: always()
-    needs: [backend, frontend, security, helm]
+    needs: [backend, frontend, security, helm, terraform]
     runs-on: ubuntu-latest
     steps:
       - name: Check required jobs
         run: |
-          echo "backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} helm=${{ needs.helm.result }} security=${{ needs.security.result }}"
-          if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.helm.result }}" != "success" ] || [ "${{ needs.security.result }}" != "success" ]; then            echo "::error::Au moins un job obligatoire a échoué."
+          echo "backend=${{ needs.backend.result }} frontend=${{ needs.frontend.result }} helm=${{ needs.helm.result }} security=${{ needs.security.result }} terraform=${{ needs.terraform.result }}"
+          if [ "${{ needs.backend.result }}" != "success" ] || [ "${{ needs.frontend.result }}" != "success" ] || [ "${{ needs.helm.result }}" != "success" ] || [ "${{ needs.security.result }}" != "success" ] || [ "${{ needs.terraform.result }}" != "success" ]; then
+            echo "::error::Au moins un job obligatoire a échoué."
             exit 1
           fi
