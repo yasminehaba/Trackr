@@ -122,6 +122,10 @@ jobs:
           tags: trackr-${{ matrix.service }}:ci
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # Étape finale jamais en cache : apk upgrade récupère toujours les
+          # derniers correctifs Alpine (ADR-023). Le cache reste actif pour npm/Maven.
+          no-cache-filters: runtime
+          pull: true
 
       # ── 3. Test de fumée : l'image démarre-t-elle vraiment ? ──────────────
       - name: Smoke test backend
