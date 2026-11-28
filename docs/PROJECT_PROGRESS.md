@@ -19,8 +19,8 @@
 | K | Kubernetes avancé (Flyway, HPA, résilience, RBAC) | ✅ Terminé |
 | L | Helm | ✅ Terminé |
 | M | DevSecOps | ✅ Terminé (options reportées : actionlint, `open-in-view`) |
-| N – O | Terraform, Ansible | ⏳ À faire |
-| P – S | Prometheus, Grafana, logs, tests de charge | ⏳ À faire |
+| N | Terraform (infrastructure AWS en code, rien de créé) | ✅ Validé en local · CI en attente (GitHub Actions bloqué) |
+| O | Ansible | ⏳ À faire |
 | T – Z | AWS (dernière étape) | ⏳ À faire |
 
 ## Phase A — Fork et configuration du dépôt ✅
@@ -255,7 +255,27 @@ Chart `helm/trackr` 0.1.0 · release `trackr` dans le namespace `trackr-helm` ·
 | Preuve | Push direct sur `develop` → `GH006: Protected branch update failed … Required status check "CI status" is expected` |
 
 Reporté (facultatif) : job `actionlint`, `spring.jpa.open-in-view: false`, suppression de `hibernate.dialect` (problème n°15).
+## Phase N — Terraform ✅ (validé en local)
 
+Code dans `terraform/envs/dev` (région eu-west-3) · **aucune ressource AWS créée** · aucun identifiant AWS utilisé
+
+| Composant | Contenu |
+|---|---|
+| Réseau | VPC 10.0.0.0/16 sur 2 zones : sous-réseaux publics, privés, base ; 1 NAT Gateway ; VPC Flow Logs (7 jours) |
+| EKS | Kubernetes 1.36, nœuds managés `t3.medium` (2 à 3, AL2023) en privé ; API restreinte à des /32 ; 5 journaux du plan de contrôle ; add-ons VPC CNI, CoreDNS, kube-proxy, Pod Identity |
+| ECR | `trackr-backend`, `trackr-frontend` : tags immuables, scan à l'envoi, 20 images conservées |
+| RDS | PostgreSQL 16 `db.t4g.micro`, privé, chiffré, mot de passe dans Secrets Manager, protection contre la suppression |
+| GitHub → AWS | Fournisseur OIDC + rôle limité à `main` : push ECR, lecture du cluster, déploiement dans le namespace `trackr` uniquement |
+
+| Contrôle | Résultat (2026-11-27) |
+|---|---|
+| Versions épinglées | Terraform 1.17.2 · provider AWS 6.74.0 · modules VPC 6.9.0, EKS 21.30.2, RDS 7.2.2 · `.terraform.lock.hcl` versionné |
+| `terraform validate` | ✅ Success |
+| tflint v0.66.0 | ✅ 0 remarque |
+| Trivy config (MEDIUM+) | 42 constats → 34 faux positifs (exemples des modules) exclus, 4 corrigés (Flow Logs, protection RDS, journaux EKS ×2), 2 exceptions datées (AWS-0040, AWS-0104) → ✅ 0 |
+| Garde-fou CI | Job `terraform` (fmt, validate `-lockfile=readonly`, tflint, Trivy) intégré à `CI status` — exécution en attente du rétablissement de GitHub Actions |
+
+`terraform plan` nécessite des identifiants AWS (lecture seule, gratuit) : reporté en phase T.
 ## Problèmes connus
 
 | # | Problème | Gravité | État |
@@ -276,9 +296,10 @@ Reporté (facultatif) : job `actionlint`, `spring.jpa.open-in-view: false`, supp
 | 14 | Descriptions > 255 caractères → HTTP 500 (validation API à 1000) | 🟠 | ✅ Corrigé (migration V2, K1) |
 | 15 | Avertissements au démarrage : `open-in-view` actif, `hibernate.dialect` superflu | 🟡 | M4 |
 | 16 | NetworkPolicies non appliquées par le CNI de Minikube | 🟡 | Documenté (ADR-020) ; appliquées sur EKS (phase W) |
+| 17 | GitHub Actions désactivé sur le dépôt depuis le 2026-11-26 (HTTP 422 « Actions has been disabled ») : plus aucune PR fusionnable (protection de branche) | 🔴 | Ouvert — en cours auprès de GitHub |
 
 Problème local résolu : le port 8080 était occupé par le listener Oracle (`TNSLSNR`) sur la machine de développement ; Oracle a été arrêté.
 
 ## Prochaine action recommandée
 
-Phase N : écrire l'infrastructure AWS en Terraform (VPC, EKS, ECR, RDS) et la valider par `terraform plan`, sans créer aucune ressource.
+Rétablir GitHub Actions et fusionner la PR #20 ; puis phase O (Ansible).

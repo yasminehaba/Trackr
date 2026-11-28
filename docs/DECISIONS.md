@@ -213,3 +213,15 @@ Une décision n'est jamais effacée : si elle change, elle est marquée « rempl
   - Secrets injectés dans EKS par **External Secrets Operator** (rôle IAM du pod via IRSA), qui crée les Secrets Kubernetes attendus par le chart : le chart ne change pas.
   - État Terraform chiffré (backend S3), car il peut contenir des valeurs sensibles.
 - **Règle :** aucune clé AWS n'est collée dans une conversation, un fichier versionné ou un log.
+
+## ADR-027 — Infrastructure AWS en Terraform
+
+- **Date :** 2026-11-27 · **Statut :** acceptée
+- **Décisions :**
+  - Modules communautaires `terraform-aws-modules` (VPC, EKS, RDS) épinglés à une version **exacte** ; provider AWS `~> 6.74` ; fichier de verrouillage versionné et imposé en CI (`-lockfile=readonly`).
+  - Validation sans compte AWS : `fmt`, `validate` (`-backend=false`), tflint, Trivy config. `plan` et `apply` en phase T seulement, après accord sur les coûts.
+  - État distant prévu dans S3 chiffré avec verrouillage natif (`use_lockfile`, Terraform ≥ 1.10) ; jamais dans Git.
+  - Choix d'économie assumés pour la démo : une seule NAT Gateway, RDS mono-AZ, petites instances, journaux conservés 7 jours.
+  - Valeurs personnelles (IP autorisée) dans `*.local.tfvars`, ignorés par Git.
+- **Exceptions de sécurité** (`terraform/.trivyignore`, expirent le 2027-02-28) : AWS-0040 (API EKS publique, restreinte à des /32 + IAM) et AWS-0104 (sortie Internet des nœuds, via NAT et Flow Logs ; VPC Endpoints jugés trop coûteux).
+- **Procédure de destruction :** `terraform apply -var db_deletion_protection=false`, puis `terraform destroy`. La protection empêche une suppression accidentelle de la base.
