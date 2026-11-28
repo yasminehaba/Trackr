@@ -1,0 +1,14 @@
+# Exceptions du scan IaC (trivy config). Règle (ADR-022) : justification et date
+# d'expiration obligatoires. À la date d'expiration, l'exception est réexaminée.
+
+# AWS-0040 — API du cluster EKS publique.
+# Atténuation : accès restreint à des /32 (variable api_allowed_cidrs, 0.0.0.0/0
+# refusé par validation) + authentification IAM obligatoire.
+# Alternative écartée : VPN/bastion payant pour un environnement de démo.
+AWS-0040 exp:2027-02-28
+
+# AWS-0104 — Sortie Internet des nœuds EKS sans restriction.
+# Nécessaire pour ECR/GHCR et les API AWS. Sortie via une NAT Gateway unique,
+# journalisée par les VPC Flow Logs. Alternative écartée : VPC Endpoints
+# (environ 7-8 $/mois chacun, par zone).
+AWS-0104 exp:2027-02-28

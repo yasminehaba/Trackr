@@ -99,3 +99,6 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 # .terraform.lock.hcl est VERSIONNÉ (empreintes des providers, comme package-lock.json)
+
+# Valeurs personnelles (IP autorisée…) : jamais versionnées
+*.local.tfvars

@@ -233,13 +233,16 @@ jobs:
 
       - name: tflint
         run: docker run --rm -v "$PWD/terraform:/data" -w /data/envs/dev "ghcr.io/terraform-linters/tflint:$TFLINT_VERSION" --config=/data/.tflint.hcl
-
       - name: Scan IaC with Trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          # Terraform seulement : ignore les manifests d'exemple des modules
+          TRIVY_MISCONFIG_SCANNERS: terraform
         with:
           scan-type: config
           scan-ref: terraform/envs/dev
           severity: MEDIUM,HIGH,CRITICAL
+          trivyignores: terraform/.trivyignore
           exit-code: '1'
   ci-status:
     name: CI status
